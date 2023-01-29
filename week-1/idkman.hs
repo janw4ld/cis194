@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations -fno-warn-unused-binds #-}
 
 import CodeWorld
+import GHC.Data.StringBuffer (StringBuffer (cur))
 
 main :: IO ()
 main = exercise2
@@ -38,21 +39,21 @@ exercise1 = animationOf trafficLightAnimation
 
 -- Exercise 2
 
-tree :: Picture -> Picture
-tree blossom =
+tree :: Integer -> Picture -> Picture
+tree 0 blossom = blossom
+tree n blossom =
   curve [(0, 0), (0, 1)]
     & translated
       0
       1
-      ( rotated (pi / 10) blossom & rotated (-pi / 10) blossom
+      ( rotated (pi / 10) (tree (n - 1) blossom) & rotated (-pi / 10) (tree (n - 1) blossom)
       )
 
 blossom :: Double -> Picture
-blossom t
-  | t < 10 = colored yellow (solidCircle t)
-  | otherwise = colored yellow (solidCircle 10)
+blossom t = colored green (solidCircle (min t 10 / 5))
+
 exercise2 :: IO ()
-exercise2 = animationOf (tree . blossom)
+exercise2 = animationOf (tree 8 . blossom)
 
 {-
 tree :: Integer -> Double -> Picture
