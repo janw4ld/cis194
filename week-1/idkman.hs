@@ -4,7 +4,7 @@ import CodeWorld
 import GHC.Data.StringBuffer (StringBuffer (cur))
 
 main :: IO ()
-main = exercise2
+main = exercise3
 
 -- Fill in the blanks! (When I say blanks, I mean undefineds)
 
@@ -46,7 +46,8 @@ tree n blossom =
     & translated
       0
       1
-      ( rotated (pi / 10) (tree (n - 1) blossom) & rotated (-pi / 10) (tree (n - 1) blossom)
+      ( rotated (pi / 10) (tree (n - 1) blossom)
+          & rotated (-pi / 10) (tree (n - 1) blossom)
       )
 
 blossom :: Double -> Picture
@@ -55,37 +56,42 @@ blossom t = colored green (solidCircle (min t 10 / 5))
 exercise2 :: IO ()
 exercise2 = animationOf (tree 8 . blossom)
 
-{-
-tree :: Integer -> Double -> Picture
-tree 0 _ = blank
-tree n f = path [(0,0),(0,1)] & translated 0 1 (
-  rotated (f*pi/10) (tree (n-1) f) & rotated (- f*pi/10) (tree (n-1) f))
-
-main :: IO ()
-main = animationOf (tree 8 . sin)
--}
 -- Exercise 3
 
-wall, ground, storage, box :: Picture
-wall = undefined
-ground = undefined
-storage = undefined
-box = undefined
-
+box, wall, ground, storage :: Picture
+box = colored brown (solidRectangle 1 1)
+wall = colored grey (solidRectangle 1 1)
+ground = colored yellow (solidRectangle 1 1)
+storage = colored black (solidCircle 0.3) & ground
+-- data Tile = Wall | Ground | Storage | Box | Blank
 drawTile :: Integer -> Picture
-drawTile = undefined
+drawTile n
+  | n == 1 = wall
+  | n == 2 = ground
+  | n == 3 = storage
+  | n == 4 = box
+  | otherwise = blank
 
-pictureOfMaze :: Picture
-pictureOfMaze = undefined
+hmmm :: Integer -> Integer -> Picture
+hmmm x y = translated (fromIntegral x) (fromIntegral y) (drawTile (maze x y))
 
+drawRow :: Integer -> Integer -> Picture
+drawRow (-10) y = hmmm (-10) y
+drawRow x y = hmmm x y & drawRow (x - 1) y
+
+drawCol :: Integer -> Integer -> Picture
+drawCol x (-10) = drawRow x (-10)
+drawCol x y = drawRow x y & drawCol x (y - 1)
+
+-- x in [-10, 10]
 exercise3 :: IO ()
-exercise3 = undefined
+exercise3 = drawingOf (drawCol 10 10)
 
 maze :: Integer -> Integer -> Integer
 maze x y
-  | abs x > 4 || abs y > 4 = 0
+  | abs x > 4  || abs y > 4  = 0
   | abs x == 4 || abs y == 4 = 1
-  | x == 2 && y <= 0 = 1
-  | x == 3 && y <= 0 = 3
-  | x >= -2 && y == 0 = 4
-  | otherwise = 2
+  | x ==  2 && y <= 0        = 1
+  | x ==  3 && y <= 0        = 3
+  | x >= -2 && y == 0        = 4
+  | otherwise                = 2
