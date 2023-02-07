@@ -58,28 +58,27 @@ exercise2 = animationOf (tree 8 . blossom)
 
 -- Exercise 3
 
+fromTile :: Tile -> Picture
+data Tile = Wall | Ground | Storage | Box | Blank
 box, wall, ground, storage :: Picture
 box = colored brown (solidRectangle 1 1)
 wall = colored grey (solidRectangle 1 1)
 ground = colored yellow (solidRectangle 1 1)
 storage = colored black (solidCircle 0.3) & ground
-data Tile = Wall | Ground | Storage | Box | Blank deriving (Eq)
-
-getTile :: Tile -> Picture
-getTile n
-  | n == Wall = wall
-  | n == Ground = ground
-  | n == Storage = storage
-  | n == Box = box
-  | otherwise = blank
+fromTile tile = case tile of
+  Wall    -> wall
+  Ground  -> ground
+  Storage -> storage
+  Box     -> box
+  _       -> blank
 
 data Coords = C Integer Integer
-drawTile :: Integer -> Integer -> Picture
-drawTile x y = translated (fromIntegral x) (fromIntegral y) (getTile (maze (C x y)))
+drawTile :: Coords -> Picture
+drawTile (C x y) = translated (fromIntegral x) (fromIntegral y) (fromTile (maze (C x y)))
 
 drawRow :: Coords -> Picture
-drawRow (C (-10) y) = drawTile (-10) y
-drawRow (C x y)     = drawTile x y & drawRow (C (x - 1) y)
+drawRow (C (-10) y) = drawTile (C (-10) y)
+drawRow (C x y)     = drawTile (C x y) & drawRow (C (x - 1) y)
 
 drawGrid :: Coords -> Picture
 drawGrid (C x (-10)) = drawRow (C x (-10))
