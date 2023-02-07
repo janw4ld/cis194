@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations -fno-warn-unused-binds #-}
 
-import CodeWorld
-import GHC.Data.StringBuffer (StringBuffer (cur))
+import           CodeWorld
+import           GHC.Data.StringBuffer (StringBuffer (cur))
 
 main :: IO ()
 main = exercise3
@@ -10,7 +10,7 @@ main = exercise3
 
 -- Exercise 1
 
-botCircle, topCircle :: Color -> Picture
+botCircle, midCircle, topCircle :: Color -> Picture
 botCircle c = colored c (translated 0 (-3) (solidCircle 1))
 midCircle c = colored c (translated 0 0 (solidCircle 1))
 topCircle c = colored c (translated 0 3 (solidCircle 1))
@@ -63,35 +63,36 @@ box = colored brown (solidRectangle 1 1)
 wall = colored grey (solidRectangle 1 1)
 ground = colored yellow (solidRectangle 1 1)
 storage = colored black (solidCircle 0.3) & ground
--- data Tile = Wall | Ground | Storage | Box | Blank
-drawTile :: Integer -> Picture
-drawTile n
-  | n == 1 = wall
-  | n == 2 = ground
-  | n == 3 = storage
-  | n == 4 = box
+data Tile = Wall | Ground | Storage | Box | Blank deriving (Eq)
+
+getTile :: Tile -> Picture
+getTile n
+  | n == Wall = wall
+  | n == Ground = ground
+  | n == Storage = storage
+  | n == Box = box
   | otherwise = blank
 
-hmmm :: Integer -> Integer -> Picture
-hmmm x y = translated (fromIntegral x) (fromIntegral y) (drawTile (maze x y))
+data Coords = Coords Integer Integer
+drawTile :: Integer -> Integer -> Picture
+drawTile x y = translated (fromIntegral x) (fromIntegral y) (getTile (maze (Coords x y)))
 
-drawRow :: Integer -> Integer -> Picture
-drawRow (-10) y = hmmm (-10) y
-drawRow x y = hmmm x y & drawRow (x - 1) y
+drawRow :: Coords -> Picture
+drawRow (Coords (-10) y) = drawTile (-10) y
+drawRow (Coords x y)     = drawTile x y & drawRow (Coords (x - 1) y)
 
-drawCol :: Integer -> Integer -> Picture
-drawCol x (-10) = drawRow x (-10)
-drawCol x y = drawRow x y & drawCol x (y - 1)
+drawGrid :: Coords -> Picture
+drawGrid (Coords x (-10)) = drawRow (Coords x (-10))
+drawGrid (Coords x y)     = drawRow (Coords x y) & drawGrid (Coords x (y - 1))
 
--- x in [-10, 10]
 exercise3 :: IO ()
-exercise3 = drawingOf (drawCol 10 10)
+exercise3 = drawingOf (drawGrid (Coords 10 10))
 
-maze :: Integer -> Integer -> Integer
-maze x y
-  | abs x > 4  || abs y > 4  = 0
-  | abs x == 4 || abs y == 4 = 1
-  | x ==  2 && y <= 0        = 1
-  | x ==  3 && y <= 0        = 3
-  | x >= -2 && y == 0        = 4
-  | otherwise                = 2
+maze :: Coords -> Tile
+maze (Coords x y)
+  | abs x > 4  || abs y > 4  = Blank
+  | abs x == 4 || abs y == 4 = Wall
+  | x == 2     && y <= 0     = Wall
+  | x == 3     && y <= 0     = Storage
+  | x >= -2    && y == 0     = Box
+  | otherwise                = Ground
