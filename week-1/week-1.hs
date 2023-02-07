@@ -73,23 +73,23 @@ getTile n
   | n == Box = box
   | otherwise = blank
 
-data Coords = Coords Integer Integer
+data Coords = C Integer Integer
 drawTile :: Integer -> Integer -> Picture
-drawTile x y = translated (fromIntegral x) (fromIntegral y) (getTile (maze (Coords x y)))
+drawTile x y = translated (fromIntegral x) (fromIntegral y) (getTile (maze (C x y)))
 
 drawRow :: Coords -> Picture
-drawRow (Coords (-10) y) = drawTile (-10) y
-drawRow (Coords x y)     = drawTile x y & drawRow (Coords (x - 1) y)
+drawRow (C (-10) y) = drawTile (-10) y
+drawRow (C x y)     = drawTile x y & drawRow (C (x - 1) y)
 
 drawGrid :: Coords -> Picture
-drawGrid (Coords x (-10)) = drawRow (Coords x (-10))
-drawGrid (Coords x y)     = drawRow (Coords x y) & drawGrid (Coords x (y - 1))
+drawGrid (C x (-10)) = drawRow (C x (-10))
+drawGrid (C x y)     = drawRow (C x y) & drawGrid (C x (y - 1))
 
 exercise3 :: IO ()
-exercise3 = drawingOf (drawGrid (Coords 10 10))
+exercise3 = drawingOf (drawGrid (C 10 10))
 
 maze :: Coords -> Tile
-maze (Coords x y)
+maze (C x y)
   | abs x > 4  || abs y > 4  = Blank
   | abs x == 4 || abs y == 4 = Wall
   | x == 2     && y <= 0     = Wall
