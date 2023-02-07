@@ -26,9 +26,9 @@ trafficLight 0 = botCircle black & topCircle black & midCircle yellow & frame
 
 trafficController :: Double -> Picture
 trafficController t
-  | round t `mod` 6 == 5 || round t `mod` 6 == 4 = trafficLight 5
-  | round t `mod` 6 == 3 = trafficLight 3
-  | round t `mod` 6 == 2 || round t `mod` 6 == 1 = trafficLight 2
+  | mod (round t) 6 == 5 || round t `mod` 6 == 4 = trafficLight 5
+  | mod (round t) 6 == 3 = trafficLight 3
+  | mod (round t) 6 == 2 || round t `mod` 6 == 1 = trafficLight 2
   | otherwise = trafficLight 0
 
 trafficLightAnimation :: Double -> Picture
