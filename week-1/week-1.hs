@@ -76,11 +76,11 @@ storage = colored black (solidCircle 0.3) & ground
 
 data Coords = C Integer Integer
 
-translatePicTo :: Coords -> Picture -> Picture
-translatePicTo (C x y) = translated (fromIntegral x) (fromIntegral y)
+moveTo :: Picture -> Coords -> Picture
+moveTo pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 
 drawTileAt :: Coords -> Picture
-drawTileAt c = translatePicTo c (fromTile (maze c))
+drawTileAt c = moveTo (fromTile (maze c)) c
 
 drawRow :: Coords -> Picture
 drawRow (C (-10) y) = drawTileAt (C (-10) y)
