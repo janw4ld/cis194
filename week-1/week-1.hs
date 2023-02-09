@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations -fno-warn-unused-binds #-}
 
 import           CodeWorld
-import           GHC.Data.StringBuffer (StringBuffer (cur))
 
 main :: IO ()
 main = exercise3
@@ -61,10 +60,7 @@ exercise2 = animationOf (tree 8 . blossom)
 fromTile :: Tile -> Picture
 data Tile = Wall | Ground | Storage | Box | Blank
 box, wall, ground, storage :: Picture
-box = colored brown (solidRectangle 1 1)
-wall = colored grey (solidRectangle 1 1)
-ground = colored yellow (solidRectangle 1 1)
-storage = colored black (solidCircle 0.3) & ground
+
 fromTile tile = case tile of
   Wall    -> wall
   Ground  -> ground
@@ -72,13 +68,23 @@ fromTile tile = case tile of
   Box     -> box
   _       -> blank
 
+box = colored brown (solidRectangle 1 1)
+wall = colored grey (solidRectangle 1 1)
+ground = colored yellow (solidRectangle 1 1)
+storage = colored black (solidCircle 0.3) & ground
+
+
 data Coords = C Integer Integer
-drawTile :: Coords -> Picture
-drawTile (C x y) = translated (fromIntegral x) (fromIntegral y) (fromTile (maze (C x y)))
+
+translatePicTo :: Coords -> Picture -> Picture
+translatePicTo (C x y) = translated (fromIntegral x) (fromIntegral y)
+
+drawTileAt :: Coords -> Picture
+drawTileAt c = translatePicTo c (fromTile (maze c))
 
 drawRow :: Coords -> Picture
-drawRow (C (-10) y) = drawTile (C (-10) y)
-drawRow (C x y)     = drawTile (C x y) & drawRow (C (x - 1) y)
+drawRow (C (-10) y) = drawTileAt (C (-10) y)
+drawRow (C x y)     = drawTileAt (C x y) & drawRow (C (x - 1) y)
 
 drawGrid :: Coords -> Picture
 drawGrid (C x (-10)) = drawRow (C x (-10))
