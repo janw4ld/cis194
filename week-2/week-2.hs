@@ -65,17 +65,22 @@ newPose key c = S direction (adjacentCoords direction c) where
     "Up"    ->  U
     "Left"  ->  L
     "Down"  ->  D
-    -- _      ->  Nothing
+    -- _       ->
 
+dirFromState :: (t -> State) -> t -> Direction
+dirFromState go c = (\(S d _) -> d) (go c)
+
+coordsFromState :: (t -> State) -> t -> Coords
+coordsFromState go c = (\(S _ c) -> c) (go c)
 
 handleEvent :: Event -> State -> State
--- handleEvent (KeyPress "Esc") _ = initialPose
-handleEvent (KeyPress key) (S _ c) =
+handleEvent (KeyPress "Esc") _ = initialPose
+handleEvent (KeyPress key) (S _ c) | key `elem` ["Right", "Up", "Left", "Down"] = -- redundancy?
   unwrap (newPose key) c where
   unwrap :: (Coords -> State) -> Coords -> State
-  unwrap go s = S ((\(S d _) -> d) (go c)) (attempt s) where
-    attempt c
-      | isOk (maze ((\(S _ x) -> x) (go c))) = (\(S _ x) -> x) (go c)
+  unwrap fn s = S (dirFromState fn c) (attempt c (coordsFromState fn c)) where
+    attempt c s
+      | isOk (maze s) = s
       | otherwise = c
     isOk tile = case tile of
       Ground  -> True
