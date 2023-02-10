@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           CodeWorld
+import           Data.Map.Lazy
 import           Data.Maybe         (fromJust)
 import           Data.Text.Internal (Text)
 
@@ -58,27 +59,31 @@ adjacentCoords direction (C x y) = case direction of
     L -> C (x-1)  y
     D -> C  x    (y-1)
 
-newPose :: Text -> Coords -> State
-newPose key c = S direction (adjacentCoords direction c) where
-  direction = case key of
-    "Right" ->  R
-    "Up"    ->  U
-    "Left"  ->  L
-    "Down"  ->  D
-    -- _       ->
+dirMap :: Map Text Direction
+dirMap = fromList[
+  ("Right", R),
+  ("Up", U),
+  ("Left", L),
+  ("Down", D)
+  ]
 
+newPose :: Text -> Coords -> State
+newPose key c = S (toDirection key) (adjacentCoords (toDirection key) c)
+
+toDirection :: Text -> Direction
+toDirection = (!) dirMap
+{- 
 dirFromState :: (t -> State) -> t -> Direction
 dirFromState go c = (\(S d _) -> d) (go c)
 
 coordsFromState :: (t -> State) -> t -> Coords
 coordsFromState go c = (\(S _ c) -> c) (go c)
+ -}
 
 handleEvent :: Event -> State -> State
 handleEvent (KeyPress "Esc") _ = initialPose
-handleEvent (KeyPress key) (S _ c) | key `elem` ["Right", "Up", "Left", "Down"] = -- redundancy?
-  unwrap (newPose key) c where
-  unwrap :: (Coords -> State) -> Coords -> State
-  unwrap fn s = S (dirFromState fn c) (attempt c (coordsFromState fn c)) where
+handleEvent (KeyPress key) (S _ c) | key `member` dirMap =
+  (\(S d x) -> S d (attempt c x)) (newPose key c) where
     attempt c s
       | isOk (maze s) = s
       | otherwise = c
@@ -89,18 +94,16 @@ handleEvent (KeyPress key) (S _ c) | key `elem` ["Right", "Up", "Left", "Down"] 
 handleEvent _ (S d c) = S d c
 
 
-player :: State ->  Picture
-player (S direction c) = atCoords
-  (rotate direction (colored red (styledLettering Bold Monospace ">"))) c
-  & drawMaze where
-    rotate :: Direction -> Picture -> Picture
-    rotate direction pic = case direction of
-      U -> rotated (pi/2) pic
-      L -> rotated pi pic
-      D -> rotated (3*pi/2) pic
-      R -> pic
-      -- Nothing -> pic
+frame :: State -> Picture
+frame (S direction c) = atCoords
+  (rotate direction (colored red (styledLettering Bold Monospace ">"))) c where
+  rotate :: Direction -> Picture -> Picture
+  rotate direction pic = case direction of
+    U -> rotated (pi/2) pic
+    L -> rotated pi pic
+    D -> rotated (3*pi/2) pic
+    R -> pic
 
 
 main :: IO ()
-main = activityOf initialPose handleEvent player
+main = activityOf initialPose handleEvent (\s -> frame s & drawMaze)
