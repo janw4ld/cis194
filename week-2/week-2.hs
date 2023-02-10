@@ -16,7 +16,6 @@ fromTile tile = case tile of
   _       -> blank
 
 
-
 travEdge :: (Integer -> Picture) -> Picture
 -- This only works because the maze is a square
 travEdge fn = go 10 where
@@ -47,18 +46,6 @@ maze (C x y)
 
 
 data Direction = R | U | L | D
-data State = S Direction Coords
-
-initialPose :: State
-initialPose = S D (C (-3) 3)
-
-adjacentCoords :: Direction -> Coords -> Coords
-adjacentCoords direction (C x y) = case direction of
-    R -> C (x+1)  y
-    U -> C  x    (y+1)
-    L -> C (x-1)  y
-    D -> C  x    (y-1)
-
 dirMap :: Map Text Direction
 dirMap = fromList[
   ("Right", R),
@@ -67,43 +54,52 @@ dirMap = fromList[
   ("Down", D)
   ]
 
-newPose :: Text -> Coords -> State
-newPose key c = S (toDirection key) (adjacentCoords (toDirection key) c)
+data State = S Direction Coords
+initialState :: State
+initialState = S D (C (-3) 3)
 
-toDirection :: Text -> Direction
-toDirection = (!) dirMap
-{- 
-dirFromState :: (t -> State) -> t -> Direction
-dirFromState go c = (\(S d _) -> d) (go c)
+adjacentCoords :: Direction -> Coords -> Coords
+adjacentCoords direction (C x y) = case direction of
+  R -> C (x+1)  y
+  U -> C  x    (y+1)
+  L -> C (x-1)  y
+  D -> C  x    (y-1)
 
-coordsFromState :: (t -> State) -> t -> Coords
-coordsFromState go c = (\(S _ c) -> c) (go c)
- -}
+newState :: Direction -> Coords -> State
+newState direction c = S direction (adjacentCoords direction c)
+
 
 handleEvent :: Event -> State -> State
-handleEvent (KeyPress "Esc") _ = initialPose
-handleEvent (KeyPress key) (S _ c) | key `member` dirMap =
-  (\(S d x) -> S d (attempt c x)) (newPose key c) where
-    attempt c s
-      | isOk (maze s) = s
-      | otherwise = c
+-- handleEvent (KeyPress "Esc") _ = initialPose
+handleEvent (KeyPress key) (S _ src) | key `member` dirMap =
+  (\(S dir dst) -> S dir (moveAttempt src dst)) (newState (dirMap!key) src) where
+    moveAttempt src dst
+      | isOk (maze dst) = dst
+      | otherwise       = src
     isOk tile = case tile of
       Ground  -> True
       Storage -> True
       _       -> False
 handleEvent _ (S d c) = S d c
 
+resetableActivityOf ::
+    world ->
+    (Event -> world -> world) ->
+    (world -> Picture) ->
+    IO ()
+resetableActivityOf initial handler = activityOf initial handler' where
+  handler' (KeyPress "Esc") _ = initial
+  handler' e s                = handler e s
 
 frame :: State -> Picture
 frame (S direction c) = atCoords
-  (rotate direction (colored red (styledLettering Bold Monospace ">"))) c where
-  rotate :: Direction -> Picture -> Picture
-  rotate direction pic = case direction of
-    U -> rotated (pi/2) pic
-    L -> rotated pi pic
-    D -> rotated (3*pi/2) pic
-    R -> pic
+  (rotated angle (colored red (styledLettering Bold Monospace ">"))) c where
+  angle = case direction of
+    R -> 0
+    U -> pi/2
+    L -> pi
+    D -> 3*pi/2
 
 
 main :: IO ()
-main = activityOf initialPose handleEvent (\s -> frame s & drawMaze)
+main = resetableActivityOf initialState handleEvent (\s -> frame s & drawMaze)
