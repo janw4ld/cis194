@@ -1,32 +1,25 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           CodeWorld
+import           Data.Maybe         (fromJust)
+import           Data.Text.Internal (Text)
 
 
 fromTile :: Tile -> Picture
-data Tile = Wall | Ground | Storage | Box | Blank
-box, wall, ground, storage :: Picture
+data Tile = Wall | Ground | Storage | Box | Blank deriving (Eq)
 
 fromTile tile = case tile of
-  Wall    -> wall
-  Ground  -> ground
-  Storage -> storage
-  Box     -> box
+  Wall    -> colored grey (solidRectangle 1 1)
+  Ground  -> colored yellow (solidRectangle 1 1)
+  Storage -> colored black (solidCircle 0.3) & fromTile Ground
+  Box     -> colored brown (solidRectangle 1 1)
   _       -> blank
-
-box = colored brown (solidRectangle 1 1)
-wall = colored grey (solidRectangle 1 1)
-ground = colored yellow (solidRectangle 1 1)
-storage = colored black (solidCircle 0.3) & ground
 
 
 data Coords = C Integer Integer
-{-
-(??=) :: Maybe a-> a-> a
-Just a ??= _ = a
-Nothing ??= b = b
- -}
+
 travEdge :: (Integer -> Picture) -> Picture
-travEdge fn = go 10 -- (n??=10)
+-- This only works because the maze is a square
+travEdge fn = go 10
   where
     go :: Integer -> Picture
     go (-10) = fn (-10)
@@ -37,16 +30,9 @@ atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 
 drawTileAt :: Coords -> Picture
 drawTileAt c = atCoords (fromTile (maze c)) c
-{-
-drawRow :: Integer -> Picture
-drawRow y = travEdge (\x -> drawTileAt (C x y))  --Nothing
- -}
-theMaze :: Picture
-theMaze = travEdge (\y -> travEdge (\x -> drawTileAt (C x y)))
 
-
-exercise3 :: IO ()
-exercise3 = drawingOf theMaze
+drawMaze :: Picture
+drawMaze = travEdge (\x -> travEdge $ drawTileAt . C x)
 
 maze :: Coords -> Tile
 maze (C x y)
@@ -59,25 +45,47 @@ maze (C x y)
 
 data Direction = R | U | L | D
 
-initialCoord :: Coords
-initialCoord = C 0 0
+initialPose :: (Maybe Direction, Coords)
+initialPose = (Nothing ,C (-3) 3)
 
-adjacentCoord :: Direction -> Coords -> Coords
-adjacentCoord R (C x y) = C (x+1) y
-adjacentCoord U (C x y) = C  x   (y+1)
-adjacentCoord L (C x y) = C (x-1) y
-adjacentCoord D (C x y) = C  x   (y-1)
+adjacentCoords :: Direction -> Coords -> (Direction, Coords)
+adjacentCoords direction (C x y) = case direction of
+  R -> (direction, C (x+1)  y)
+  U -> (direction, C  x    (y+1))
+  L -> (direction, C (x-1)  y)
+  D -> (direction, C  x    (y-1))
 
-handleEvent :: Event -> Coords -> Coords
-handleEvent (KeyPress key) c
-    | key == "Right" = adjacentCoord R c
-    | key == "Up"    = adjacentCoord U c
-    | key == "Left"  = adjacentCoord L c
-    | key == "Down"  = adjacentCoord D c
-handleEvent _ c = c
+newPose :: Text -> Coords -> (Direction, Coords)
+newPose key = adjacentCoords map
+  where
+    map = case key of
+      "Right" ->  R
+      "Up"    ->  U
+      "Left"  ->  L
+      "Down"  ->  D
+      -- _      ->  Nothing
 
-drawState :: Coords -> Picture
-drawState = atCoords theMaze
+handleEvent :: Event -> (Maybe Direction, Coords) -> (Maybe Direction, Coords)
+handleEvent (KeyPress key) (_,c) = wrap (newPose key c)
+  where
+    wrap :: (Direction, Coords) -> (Maybe Direction, Coords)
+    wrap (d, newCoords)
+      | maze newCoords == Ground || maze newCoords == Storage = (Just d, newCoords)
+      | otherwise                                             = (Nothing, c)
+handleEvent _ (_,c) = (Nothing, c)
+
+
+player :: (Maybe Direction, Coords) ->  Picture
+player (direction,c) = atCoords (rotate (colored red (styledLettering Bold Monospace ">"))) c & drawMaze
+  where
+    rotate :: Picture -> Picture
+    rotate pic = case direction of
+      Nothing -> pic
+      Just R  -> pic
+      Just U  -> rotated (pi/2) pic
+      Just L  -> rotated pi pic
+      Just D  -> rotated (3*pi/2) pic
+
 
 main :: IO ()
-main = activityOf initialCoord handleEvent drawState
+main = activityOf initialPose handleEvent player
