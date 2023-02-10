@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           CodeWorld
-import           Data.Map.Lazy
+import           Data.Map.Lazy      (Map, fromList, member, (!))
 import           Data.Maybe         (fromJust)
 import           Data.Text.Internal (Text)
 
@@ -38,12 +38,12 @@ drawMaze = travEdge (\x -> travEdge $ drawTileAt . C x)
 
 maze :: Coords -> Tile
 maze (C x y)
-  | abs x > 4  || abs y > 4  = Blank
-  | abs x == 4 || abs y == 4 = Wall
-  | x ==  2    && y <= 0     = Wall
-  | x ==  3    && y <= 0     = Storage
-  | x >= -2    && y == 0     = Box
-  | otherwise                = Ground
+  | abs x  >  4 || abs y  > 4 = Blank
+  | abs x ==  4 || abs y == 4 = Wall
+  | x     ==  2 && y     <= 0 = Wall
+  | x     ==  3 && y     <= 0 = Storage
+  | x     >= -2 && y     == 0 = Box
+  | otherwise                 = Ground
 
 
 data Direction = R | U | L | D
@@ -69,19 +69,20 @@ adjacentCoords direction (C x y) = case direction of
 newState :: Direction -> Coords -> State
 newState direction c = S direction (adjacentCoords direction c)
 
-
 handleEvent :: Event -> State -> State
 -- handleEvent (KeyPress "Esc") _ = initialPose
-handleEvent (KeyPress key) (S _ src) | key `member` dirMap =
-  (\(S dir dst) -> S dir (moveAttempt src dst)) (newState (dirMap!key) src) where
-    moveAttempt src dst
-      | isOk (maze dst) = dst
-      | otherwise       = src
-    isOk tile = case tile of
+handleEvent (KeyPress key) (S _ startCoords) | key `member` dirMap = let
+  (S dir targetCoords) = newState (dirMap!key) startCoords
+  finalCoords
+    | isOk (maze targetCoords) = targetCoords
+    | otherwise = startCoords
+  isOk tile = case tile of
       Ground  -> True
       Storage -> True
       _       -> False
+  in S dir finalCoords
 handleEvent _ (S d c) = S d c
+
 
 resetableActivityOf ::
     world ->
