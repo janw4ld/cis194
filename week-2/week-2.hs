@@ -28,9 +28,10 @@ data Coords = C Integer Integer
 
 atCoords :: Picture -> Coords -> Picture
 atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
+(@>) = atCoords
 
 drawTileAt :: Coords -> Picture
-drawTileAt c = atCoords (fromTile (maze c)) c
+drawTileAt c = fromTile (maze c) @> c
 
 drawMaze :: Picture
 drawMaze = travEdge (\x -> travEdge $ drawTileAt . C x)
@@ -92,9 +93,9 @@ resetableActivityOf initial handler = activityOf initial handler' where
   handler' e s                = handler e s
 
 frame :: State -> Picture
-frame (S direction c) = atCoords
-  (rotated angle (colored red (styledLettering Bold Monospace ">"))) c where
-  angle = case direction of
+frame (S direction c) =
+  rotated theta (colored red (styledLettering Bold Monospace ">")) @> c where
+  theta = case direction of
     R -> 0
     U -> pi/2
     L -> pi
