@@ -46,7 +46,7 @@ maze (C x y)
 data Direction = R | U | L | D
 
 initialPose :: (Maybe Direction, Coords)
-initialPose = (Nothing ,C (-3) 3)
+initialPose = (Just D ,C (-3) 3)
 
 adjacentCoords :: Direction -> Coords -> (Direction, Coords)
 adjacentCoords direction (C x y) = case direction of
@@ -65,26 +65,29 @@ newPose key = adjacentCoords map
       "Down"  ->  D
       -- _      ->  Nothing
 
+
 handleEvent :: Event -> (Maybe Direction, Coords) -> (Maybe Direction, Coords)
-handleEvent (KeyPress key) (_,c) = wrap (newPose key c)
+handleEvent (KeyPress key) (_,c) = wrap c (newPose key c)
   where
-    wrap :: (Direction, Coords) -> (Maybe Direction, Coords)
-    wrap (d, newCoords)
-      | maze newCoords == Ground || maze newCoords == Storage = (Just d, newCoords)
-      | otherwise                                             = (Nothing, c)
-handleEvent _ (_,c) = (Nothing, c)
+    wrap :: Coords ->(Direction, Coords) -> (Maybe Direction, Coords)
+    wrap c (d, newCoords) = case maze newCoords of
+          Ground  -> (Just d, newCoords)
+          Storage -> (Just d, newCoords)
+          _       -> (Nothing, c)
+handleEvent _ (d, c) = (d, c)
 
 
 player :: (Maybe Direction, Coords) ->  Picture
-player (direction,c) = atCoords (rotate (colored red (styledLettering Bold Monospace ">"))) c & drawMaze
+player (direction,c) = atCoords
+  (rotate direction (colored red (styledLettering Bold Monospace ">"))) c & drawMaze
   where
-    rotate :: Picture -> Picture
-    rotate pic = case direction of
-      Nothing -> pic
-      Just R  -> pic
+    rotate :: Maybe Direction -> Picture -> Picture
+    rotate direction pic = case direction of
       Just U  -> rotated (pi/2) pic
       Just L  -> rotated pi pic
       Just D  -> rotated (3*pi/2) pic
+      Just R  -> pic
+      Nothing -> pic
 
 
 main :: IO ()
