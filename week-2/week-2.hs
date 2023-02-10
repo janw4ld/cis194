@@ -60,27 +60,27 @@ initialState :: State
 initialState = S D (C (-3) 3)
 
 adjacentCoords :: Direction -> Coords -> Coords
-adjacentCoords direction (C x y) = case direction of
+adjacentCoords d (C x y) = case d of
   R -> C (x+1)  y
   U -> C  x    (y+1)
   L -> C (x-1)  y
   D -> C  x    (y-1)
 
 newState :: Direction -> Coords -> State
-newState direction c = S direction (adjacentCoords direction c)
+newState d c = S d (adjacentCoords d c)
 
 handleEvent :: Event -> State -> State
 -- handleEvent (KeyPress "Esc") _ = initialPose
 handleEvent (KeyPress key) (S _ startCoords) | key `member` dirMap = let
-  (S dir targetCoords) = newState (dirMap!key) startCoords
-  finalCoords
-    | isOk (maze targetCoords) = targetCoords
-    | otherwise = startCoords
+  (S d targetCoords) = newState (dirMap!key) startCoords
   isOk tile = case tile of
       Ground  -> True
       Storage -> True
       _       -> False
-  in S dir finalCoords
+  finalCoords
+    | isOk (maze targetCoords) = targetCoords
+    | otherwise                = startCoords
+  in S d finalCoords
 handleEvent _ (S d c) = S d c
 
 
@@ -94,9 +94,9 @@ resetableActivityOf initial handler = activityOf initial handler' where
   handler' e s                = handler e s
 
 frame :: State -> Picture
-frame (S direction c) =
+frame (S d c) =
   rotated theta (colored red (styledLettering Bold Monospace ">")) @> c where
-  theta = case direction of
+  theta = case d of
     R -> 0
     U -> pi/2
     L -> pi
