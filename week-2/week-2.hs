@@ -70,7 +70,8 @@ newPose key c = S direction (adjacentCoords direction c) where
 
 handleEvent :: Event -> State -> State
 handleEvent (KeyPress "Esc") _ = initialPose
-handleEvent (KeyPress key) (S d c) = unwrap (newPose key) c where
+handleEvent (KeyPress key) (S d c) =
+  unwrap ((\(S _ newCoords) -> newCoords) . newPose key) c where
   unwrap :: (Coords -> Coords) -> Coords -> State
   unwrap go c = S d (attempt c) where
     attempt c
