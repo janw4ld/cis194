@@ -27,8 +27,8 @@ travEdge fn = go 10 where
 data Coords = C Integer Integer
 
 atCoords :: Picture -> Coords -> Picture
-atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 (@>) = atCoords
+atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 
 drawTileAt :: Coords -> Picture
 drawTileAt c = fromTile (maze c) @> c
@@ -71,16 +71,16 @@ newState d c = S d (adjacentCoords d c)
 
 handleEvent :: Event -> State -> State
 -- handleEvent (KeyPress "Esc") _ = initialPose
-handleEvent (KeyPress key) (S _ startCoords) | key `member` dirMap = let
-  (S d targetCoords) = newState (dirMap!key) startCoords
+handleEvent (KeyPress key) (S _ startC) | key `member` dirMap = let
+  (S d targetC) = newState (dirMap!key) startC
   isOk tile = case tile of
       Ground  -> True
       Storage -> True
       _       -> False
-  finalCoords
-    | isOk (maze targetCoords) = targetCoords
-    | otherwise                = startCoords
-  in S d finalCoords
+  finalC
+    | isOk (maze targetC) = targetC
+    | otherwise           = startC
+  in S d finalC
 handleEvent _ (S d c) = S d c
 
 
