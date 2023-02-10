@@ -45,17 +45,19 @@ maze (C x y)
 
 data Direction = R | U | L | D
 
-initialPose :: (Maybe Direction, Coords)
-initialPose = (Just D ,C (-3) 3)
+initialPose :: State
+initialPose = S (Just D) (C (-3) 3)
 
-adjacentCoords :: Direction -> Coords -> (Direction, Coords)
+data State = S (Maybe Direction) Coords | X Direction Coords
+
+adjacentCoords :: Direction -> Coords -> State
 adjacentCoords direction (C x y) = case direction of
-  R -> (direction, C (x+1)  y)
-  U -> (direction, C  x    (y+1))
-  L -> (direction, C (x-1)  y)
-  D -> (direction, C  x    (y-1))
+  R -> X direction (C (x+1)  y)
+  U -> X direction (C  x    (y+1))
+  L -> X direction (C (x-1)  y)
+  D -> X direction (C  x    (y-1))
 
-newPose :: Text -> Coords -> (Direction, Coords)
+newPose :: Text -> Coords -> State
 newPose key = adjacentCoords map
   where
     map = case key of
@@ -66,19 +68,19 @@ newPose key = adjacentCoords map
       -- _      ->  Nothing
 
 
-handleEvent :: Event -> (Maybe Direction, Coords) -> (Maybe Direction, Coords)
-handleEvent (KeyPress key) (_,c) = wrap c (newPose key c)
+handleEvent :: Event -> State -> State
+handleEvent (KeyPress key) (S _ c) = wrap c (newPose key c)
   where
-    wrap :: Coords ->(Direction, Coords) -> (Maybe Direction, Coords)
-    wrap c (d, newCoords) = case maze newCoords of
-          Ground  -> (Just d, newCoords)
-          Storage -> (Just d, newCoords)
-          _       -> (Nothing, c)
-handleEvent _ (d, c) = (d, c)
+    -- wrap :: Coords ->(Direction, Coords) -> (Maybe Direction, Coords)
+    wrap c (X d newCoords) = case maze newCoords of
+          Ground  -> S (Just d) newCoords
+          Storage -> S (Just d) newCoords
+          _       -> S Nothing c
+handleEvent _ (S d c) = S d c
 
 
-player :: (Maybe Direction, Coords) ->  Picture
-player (direction,c) = atCoords
+player :: State ->  Picture
+player (S direction c) = atCoords
   (rotate direction (colored red (styledLettering Bold Monospace ">"))) c & drawMaze
   where
     rotate :: Maybe Direction -> Picture -> Picture
