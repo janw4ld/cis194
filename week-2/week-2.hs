@@ -51,16 +51,15 @@ data State = S Direction Coords
 initialPose :: State
 initialPose = S D (C (-3) 3)
 
-adjacentCoords :: Direction -> Coords -> State
-adjacentCoords direction (C x y) = S direction newCoords where
-  newCoords = case direction of
+adjacentCoords :: Direction -> Coords -> Coords
+adjacentCoords direction (C x y) = case direction of
     R -> C (x+1)  y
     U -> C  x    (y+1)
     L -> C (x-1)  y
     D -> C  x    (y-1)
 
 newPose :: Text -> Coords -> State
-newPose key = adjacentCoords direction where
+newPose key c = S direction (adjacentCoords direction c) where
   direction = case key of
     "Right" ->  R
     "Up"    ->  U
@@ -71,11 +70,16 @@ newPose key = adjacentCoords direction where
 
 handleEvent :: Event -> State -> State
 handleEvent (KeyPress "Esc") _ = initialPose
-handleEvent (KeyPress key) (S _ c) = wrap c (newPose key c) where
-  wrap c (S d newCoords) = case maze newCoords of
-    Ground  -> S d newCoords
-    Storage -> S d newCoords
-    _       -> S d c
+handleEvent (KeyPress key) (S d c) = unwrap (newPose key) c where
+  unwrap :: (Coords -> Coords) -> Coords -> State
+  unwrap go c = S d (attempt c) where
+    attempt c
+      | isOk (maze (go c)) = go c
+      | otherwise = c
+    isOk tile = case tile of
+      Ground  -> True
+      Storage -> True
+      _       -> False
 handleEvent _ (S d c) = S d c
 
 
@@ -85,10 +89,10 @@ player (S direction c) = atCoords
   & drawMaze where
     rotate :: Direction -> Picture -> Picture
     rotate direction pic = case direction of
-      U  -> rotated (pi/2) pic
-      L  -> rotated pi pic
-      D  -> rotated (3*pi/2) pic
-      R  -> pic
+      U -> rotated (pi/2) pic
+      L -> rotated pi pic
+      D -> rotated (3*pi/2) pic
+      R -> pic
       -- Nothing -> pic
 
 
