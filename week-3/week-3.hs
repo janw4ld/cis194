@@ -1,7 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           CodeWorld
+import           Data.Map.Lazy      (Map, fromList, member, (!))
+import           Data.Maybe         (fromJust)
+import           Data.Text.Internal (Text)
 
--- Lists
+------------ lists ------------
 
 data List a = Empty | Entry a (List a)
 
@@ -13,150 +16,147 @@ combine :: List Picture -> Picture
 combine Empty        = blank
 combine (Entry p ps) = p & combine ps
 
--- Coordinates
+------------ coordinates and directions ------------
 
-data Coord = C Integer Integer
+data Coords = C Integer Integer
 
 data Direction = R | U | L | D
 
-eqCoord :: Coord -> Coord -> Bool
-eqCoord = undefined
+dirMap :: Map Text Direction
+dirMap = fromList[
+  ("Right", R),
+  ("Up"   , U),
+  ("Left" , L),
+  ("Down" , D)
+  ]
 
-adjacentCoord :: Direction -> Coord -> Coord
-adjacentCoord R (C x y) = C (x+1) y
-adjacentCoord U (C x y) = C  x   (y+1)
-adjacentCoord L (C x y) = C (x-1) y
-adjacentCoord D (C x y) = C  x   (y-1)
+adjacentCoords :: Direction -> Coords -> Coords
+adjacentCoords d (C x y) = case d of
+  R -> C (x+1)  y
+  U -> C  x    (y+1)
+  L -> C (x-1)  y
+  D -> C  x    (y-1)
 
-moveFromTo :: Coord -> Coord -> Coord -> Coord
+---TODO
+eqCoords :: Coords -> Coords -> Bool
+eqCoords = undefined
+
+moveFromTo :: Coords -> Coords -> Coords -> Coords
 moveFromTo = undefined
 
--- The maze
+------------ the maze ------------
 
-data Tile = Wall | Ground | Storage | Box | Blank
-
-maze :: Coord -> Tile
+maze :: Coords -> Tile
 maze (C x y)
-  | abs x > 4  || abs y > 4  = Blank
-  | abs x == 4 || abs y == 4 = Wall
-  | x ==  2 && y <= 0        = Wall
-  | x ==  3 && y <= 0        = Storage
-  | x >= -2 && y == 0        = Box
-  | otherwise                = Ground
+  | abs x  >  4 || abs y  > 4 = Blank
+  | abs x ==  4 || abs y == 4 = Wall
+  | x     ==  2 && y     <= 0 = Wall
+  | x     ==  3 && y     <= 0 = Storage
+  | x     >= -2 && y     == 0 = Box
+  | otherwise                 = Ground
 
-noBoxMaze :: Coord -> Tile
+noBoxMaze :: Coords -> Tile
 noBoxMaze = undefined
 
-mazeWithBoxes :: List Coord -> Coord -> Tile
+mazeWithBoxes :: List Coords -> Coords -> Tile
 mazeWithBoxes = undefined
 
--- The state
+------------ state ------------
 
-data State = State -- FIXME!
-
-initialBoxes :: List Coord
-initialBoxes = undefined
-
+data State = S Direction Coords
 initialState :: State
-initialState = State -- FIXME!
+initialState = S D (C (-3) 3)
 
--- Event handling
+initialBoxes :: List Coords
+initialBoxes = undefined --TODO
+
+newState :: Direction -> Coords -> State
+newState d c = S d (adjacentCoords d c)
+
+------------ event handling ------------
 
 handleEvent :: Event -> State -> State
-handleEvent _ s = s -- FIXME!
+-- handleEvent (KeyPress "Esc") _ = initialPose
+handleEvent (KeyPress key) (S _ startC) | key `member` dirMap = let
+  (S d targetC) = newState (dirMap!key) startC
+  isOk tile = case tile of
+      Ground  -> True
+      Storage -> True
+      _       -> False
+  finalC
+    | isOk (maze targetC) = targetC
+    | otherwise           = startC
+  in S d finalC
+handleEvent _ (S d c) = S d c
 
--- Drawing
+------------ drawing ------------
 
-wall, ground, storage, box :: Picture
-wall =    colored grey   (solidRectangle 1 1)
-ground =  colored yellow (solidRectangle 1 1)
-storage = colored white (solidCircle 0.3) & ground
-box =     colored brown  (solidRectangle 1 1)
+fromTile :: Tile -> Picture
+data Tile = Wall | Ground | Storage | Box | Blank deriving (Eq)
+fromTile tile = case tile of
+  Wall    -> colored grey (solidRectangle 1 1)
+  Ground  -> colored yellow (solidRectangle 1 1)
+  Storage -> colored black (solidCircle 0.3) & fromTile Ground
+  Box     -> colored brown (solidRectangle 1 1)
+  _       -> blank
 
-drawTile :: Tile -> Picture
-drawTile Wall    = wall
-drawTile Ground  = ground
-drawTile Storage = storage
-drawTile Box     = box
-drawTile Blank   = blank
+travEdge :: (Integer -> Picture) -> Picture
+-- This only works because the maze is a square (and i hate it for that)
+travEdge fn = go 10 where
+  go :: Integer -> Picture
+  go (-10) = fn (-10)
+  go n     = fn n & go (n-1)
 
-pictureOfMaze :: Picture
-pictureOfMaze = draw21times (\r -> draw21times (\c -> drawTileAt (C r c)))
+drawTileAt :: Coords -> Picture
+drawTileAt c = fromTile (maze c) @> c
 
-draw21times :: (Integer -> Picture) -> Picture
-draw21times something = go (-10)
-  where
-    go :: Integer -> Picture
-    go 11 = blank
-    go n  = something n & go (n+1)
+drawMaze :: Picture
+drawMaze = travEdge (\x -> travEdge $ drawTileAt . C x)
 
-drawTileAt :: Coord -> Picture
-drawTileAt c = atCoord c (drawTile (maze c))
+player :: State -> Picture
+player (S d c) =
+  rotated theta (colored red (styledLettering Bold Monospace ">")) @> c where
+  theta = case d of
+    R -> 0
+    U -> pi/2
+    L -> pi
+    D -> 3*pi/2
 
+atCoords :: Picture -> Coords -> Picture
+(@>) = atCoords
+atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 
-atCoord :: Coord -> Picture -> Picture
-atCoord (C x y) pic = translated (fromIntegral x) (fromIntegral y) pic
-
-
-player :: Direction -> Picture
-player R = translated 0 0.3 cranium
-         & polyline [(0,0),(0.3,0.05)]
-         & polyline [(0,0),(0.3,-0.05)]
-         & polyline [(0,-0.2),(0,0.1)]
-         & polyline [(0,-0.2),(0.1,-0.5)]
-         & polyline [(0,-0.2),(-0.1,-0.5)]
-  where cranium = circle 0.18
-                & sector (7/6*pi) (1/6*pi) 0.18
-player L = scaled (-1) 1 (player R) -- Cunning!
-player U = translated 0 0.3 cranium
-         & polyline [(0,0),(0.3,0.05)]
-         & polyline [(0,0),(-0.3,0.05)]
-         & polyline [(0,-0.2),(0,0.1)]
-         & polyline [(0,-0.2),(0.1,-0.5)]
-         & polyline [(0,-0.2),(-0.1,-0.5)]
-  where cranium = solidCircle 0.18
-player D = translated 0 0.3 cranium
-         & polyline [(0,0),(0.3,-0.05)]
-         & polyline [(0,0),(-0.3,-0.05)]
-         & polyline [(0,-0.2),(0,0.1)]
-         & polyline [(0,-0.2),(0.1,-0.5)]
-         & polyline [(0,-0.2),(-0.1,-0.5)]
-  where cranium = circle 0.18
-                & translated   0.06  0.08 (solidCircle 0.04)
-                & translated (-0.06) 0.08 (solidCircle 0.04)
-
-pictureOfBoxes :: List Coord -> Picture
-pictureOfBoxes cs = combine (mapList (\c -> atCoord c (drawTile Box)) cs)
+drawBoxes :: List Coords -> Picture
+drawBoxes cs = combine (mapList (atCoords (fromTile Box)) cs)
 
 drawState :: State -> Picture
-drawState State = pictureOfMaze
+drawState s = player s & drawMaze --TODO draw boxes
 
--- The complete activity
+------------ The complete activity ------------
 
 sokoban :: Activity State
 sokoban = Activity initialState handleEvent drawState
 
--- The general activity type
+------------ The general activity type ------------
 
 data Activity world = Activity
-        world
-        (Event -> world -> world)
-        (world -> Picture)
-
+  world
+  (Event -> world -> world)
+  (world -> Picture)
 
 runActivity :: Activity s -> IO ()
-runActivity (Activity state0 handle draw)
-  = activityOf state0 handle draw
+runActivity (Activity initial handler draw)
+  = activityOf initial handler draw
 
--- Resetable activities
+------------ resetable activities ------------
 
 resetable :: Activity s -> Activity s
-resetable (Activity state0 handle draw)
-  = Activity state0 handle' draw
-  where handle' (KeyPress key) _ | key == "Esc" = state0
-        handle' e s = handle e s
+resetable (Activity initial handler draw) =
+  Activity initial handler' draw where
+  handler' (KeyPress "Esc") _ = initial
+  handler' e s                = handler e s
 
--- Start screen
+------------ start screen ------------
 
 startScreen :: Picture
 startScreen = scaled 3 3 (lettering "Sokoban!")
@@ -164,20 +164,17 @@ startScreen = scaled 3 3 (lettering "Sokoban!")
 data SSState world = StartScreen | Running world
 
 withStartScreen :: Activity s  -> Activity (SSState s)
-withStartScreen (Activity state0 handle draw)
-  = Activity state0' handle' draw'
-  where
-    state0' = StartScreen
-
-    handle' (KeyPress key) StartScreen | key == " " = Running state0
-    handle' _              StartScreen              = StartScreen
-    handle' e              (Running s)              = Running (handle e s)
-
-    draw' StartScreen = startScreen
-    draw' (Running s) = draw s
+withStartScreen (Activity initial handler draw) =
+  Activity initial' handler' draw' where
+  initial' = StartScreen
+  handler' (KeyPress " ") StartScreen = Running initial
+  handler' _              StartScreen = StartScreen
+  handler' e              (Running s) = Running (handler e s)
+  draw' StartScreen = startScreen
+  draw' (Running s) = draw s
 
 
--- The main function
+------------ main ------------
 
 main :: IO ()
 main = runActivity sokoban

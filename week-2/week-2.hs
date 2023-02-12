@@ -93,8 +93,8 @@ resetableActivityOf initial handler = activityOf initial handler' where
   handler' (KeyPress "Esc") _ = initial
   handler' e s                = handler e s
 
-frame :: State -> Picture
-frame (S d c) =
+player :: State -> Picture
+player (S d c) =
   rotated theta (colored red (styledLettering Bold Monospace ">")) @> c where
   theta = case d of
     R -> 0
@@ -104,4 +104,4 @@ frame (S d c) =
 
 
 main :: IO ()
-main = resetableActivityOf initialState handleEvent (\s -> frame s & drawMaze)
+main = resetableActivityOf initialState handleEvent (\s -> player s & drawMaze)
