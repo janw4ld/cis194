@@ -50,9 +50,9 @@ data Direction = R | U | L | D
 dirMap :: Map Text Direction
 dirMap = fromList[
   ("Right", R),
-  ("Up", U),
-  ("Left", L),
-  ("Down", D)
+  ("Up"   , U),
+  ("Left" , L),
+  ("Down" , D)
   ]
 
 data State = S Direction Coords
