@@ -65,6 +65,7 @@ mazeWithBoxes :: List Coords -> Coords -> Tile
 mazeWithBoxes (Entry c Empty) _ = noBoxMaze c
 ---TODO cleanup here plz
 mazeWithBoxes cs c = if elemCoords initialBoxList c then Box else noBoxMaze c
+
 ------------ state ------------
 
 data State = S Direction Coords (List Coords)
@@ -88,8 +89,8 @@ findBoxes Empty        = Empty
 findBoxes (Entry c cs) = if maze c == Box
   then Entry c (findBoxes cs) else findBoxes cs
 
-
 ------------ event handling ------------
+
 moveFromTo :: Coords -> Coords -> Coords -> Coords -- * CONFIRMED WORKS
 moveFromTo from to tile = if from `eqCoords` tile then to else tile
 
@@ -98,17 +99,17 @@ handleEvent :: Event -> State -> State
 handleEvent (KeyPress key) (S _ startC boxes) | key `member` dirMap = let
   (S d targetC _) = newPose (dirMap!key) startC Empty
   newPose d c = S d (adjacentCoords d c)
-  
+
   finalC
     | isOk (maze targetC) = targetC
     | otherwise           = startC
   isOk tile = case tile of
     Ground  -> True
     Storage -> True
-    Box     -> True 
+    Box     -> True
     _       -> False
-  
-  newBoxes = mapList (moveFromTo targetC finalC) boxes
+
+  newBoxes = mapList (moveFromTo startC finalC) boxes
   in S d finalC newBoxes
 handleEvent _ (S d c boxes) = S d c boxes
 
@@ -154,6 +155,7 @@ drawState (S d c boxes) = drawPlayer & drawBoxes boxes & drawMaze where
     U -> pi/2
     L -> pi
     D -> 3*pi/2
+
 ------------ The complete activity ------------
 
 sokoban :: Activity State
@@ -194,7 +196,6 @@ withStartScreen (Activity initial handler draw) =
   handler' e              (Running s) = Running (handler e s)
   draw' StartScreen = startScreen
   draw' (Running s) = draw s
-
 
 ------------ main ------------
 
