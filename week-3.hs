@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           CodeWorld
-import           Data.Map.Lazy      (Map, fromList, member, (!))
-import           Data.Maybe         (fromJust)
-import           Data.Text          (pack, Text) -- y tho
--- import           Data.Text.Internal (Text)
+import           Data.Map.Lazy (Map, fromList, member, (!))
+import           Data.Text     (Text, pack)
+
 
 ------------ lists ------------
 
@@ -62,7 +61,7 @@ noBoxMaze c = if tile == Box then Ground else tile where tile = maze c
 mazeWithBoxes :: List Coords -> Coords -> Tile
 mazeWithBoxes (Entry c Empty) _ = noBoxMaze c
 ---TODO cleanup here plz
-mazeWithBoxes cs c = if elemCoords cs c then Box else noBoxMaze c
+mazeWithBoxes cs c              = if elemCoords cs c then Box else noBoxMaze c
 
 ------------ state ------------
 
@@ -110,7 +109,7 @@ handleEvent (KeyPress key) (S _ startC boxes) | key `member` dirMap = let
   canMove = let
     targetTile = mazeWithBoxes boxes targetC
     adjTile = mazeWithBoxes boxes (adjacentCoords d targetC)
-    in isOk targetTile || (targetTile==Box && 
+    in isOk targetTile || (targetTile==Box &&
       trace ("moved box: " <> pack (show (isOk adjTile)))
       (isOk adjTile))
   finalC = if canMove then targetC else startC
@@ -163,10 +162,9 @@ drawState (S d c boxes) = drawPlayer & drawBoxes boxes & drawMaze where
 
 ------------ The complete activity ------------
 
-sokoban :: Activity State
+sokoban :: Activity (SSState State)
 -- omg i can't use reduce because i implemented the list myself
-sokoban = resetable (Activity initialState handleEvent drawState)
-
+sokoban = resetable $ withStartScreen $ Activity initialState handleEvent drawState
 
 ------------ The general activity type ------------
 
@@ -190,7 +188,7 @@ resetable (Activity initial handler draw) =
 ------------ start screen ------------
 
 startScreen :: Picture
-startScreen = scaled 3 3 (lettering "Sokoban!")
+startScreen = scaled 3 3 (lettering "Sokoban!") & lettering "press space to start" @> C 0 (-3)
 
 data SSState world = StartScreen | Running world
 
@@ -207,4 +205,4 @@ withStartScreen (Activity initial handler draw) =
 ------------ main ------------
 
 main :: IO ()
-main = runActivity (withStartScreen sokoban)
+main = runActivity sokoban
