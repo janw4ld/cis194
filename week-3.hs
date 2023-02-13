@@ -111,7 +111,7 @@ handleEvent (KeyPress key) (S _ startC boxes) | key `member` dirMap = let
     targetTile = mazeWithBoxes boxes targetC
     adjTile = mazeWithBoxes boxes (adjacentCoords d targetC)
     in isOk targetTile || (targetTile==Box && 
-      trace ("adjTile " <> pack (show (isOk adjTile)))
+      trace ("moved box: " <> pack (show (isOk adjTile)))
       (isOk adjTile))
   finalC = if canMove then targetC else startC
   newBoxes = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxes
@@ -165,7 +165,7 @@ drawState (S d c boxes) = drawPlayer & drawBoxes boxes & drawMaze where
 
 sokoban :: Activity State
 -- omg i can't use reduce because i implemented the list myself
-sokoban = Activity initialState handleEvent drawState
+sokoban = resetable (Activity initialState handleEvent drawState)
 
 
 ------------ The general activity type ------------
@@ -207,4 +207,4 @@ withStartScreen (Activity initial handler draw) =
 ------------ main ------------
 
 main :: IO ()
-main = runActivity sokoban
+main = runActivity (withStartScreen sokoban)
