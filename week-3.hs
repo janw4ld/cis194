@@ -100,16 +100,22 @@ handleEvent (KeyPress key) (S _ startC boxes) | key `member` dirMap = let
   (S d targetC _) = newPose (dirMap!key) startC Empty
   newPose d c = S d (adjacentCoords d c)
 
-  finalC
-    | isOk (maze targetC) = targetC
-    | otherwise           = startC
+  final s t
+    | isOk (mazeWithBoxes boxes t) = t
+    | otherwise     = s
   isOk tile = case tile of
     Ground  -> True
     Storage -> True
-    Box     -> True
+    -- Box     -> True
     _       -> False
 
-  newBoxes = mapList (moveFromTo startC finalC) boxes
+  canMove = let
+    targetTile = mazeWithBoxes boxes targetC
+    adjTile = mazeWithBoxes boxes (adjacentCoords d targetC)
+    in isOk targetTile || (targetTile==Box && isOk adjTile)
+  finalC = if canMove then targetC else startC
+
+  newBoxes = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxes
   in S d finalC newBoxes
 handleEvent _ (S d c boxes) = S d c boxes
 
@@ -159,7 +165,9 @@ drawState (S d c boxes) = drawPlayer & drawBoxes boxes & drawMaze where
 ------------ The complete activity ------------
 
 sokoban :: Activity State
-sokoban = Activity initialState handleEvent drawState
+-- omg i can't use reduce because i implemented the list myself
+sokoban = Activity initialState handleEvent 
+  (\s-> combine (mapList (\c-> fromTile (mazeWithBoxes initialBoxList c) @> c) coordsList))
 
 ------------ The general activity type ------------
 
