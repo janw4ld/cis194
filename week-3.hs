@@ -70,7 +70,14 @@ initialState :: State
 initialState = S D (C (-3) 3) initialBoxList
 
 initialBoxList :: List Coords
-initialBoxList = findBoxes coordsList
+initialBoxList = findTiles Box coordsList
+
+storageList :: List Coords
+storageList = findTiles Storage coordsList
+
+isWon :: List Coords -> List Coords -> Bool -- I know I ignored the requirements, this is much simpler
+isWon (Entry c cs) xs = elemCoords xs c && isWon cs xs
+isWon Empty _ = True
 
 ---TODO create a function that can be used with travEdge
 coordsList :: List Coords -- This is soooo ugly
@@ -81,10 +88,10 @@ coordsList = go n n where
   go (-11) y     = go n (y-1)
   go x y         = Entry (C x y) (go (x-1) y)
 
-findBoxes :: List Coords -> List Coords
-findBoxes Empty        = Empty
-findBoxes (Entry c cs) = if maze c == Box
-  then Entry c (findBoxes cs) else findBoxes cs
+findTiles :: Tile -> List Coords -> List Coords
+findTiles _ Empty        = Empty
+findTiles t (Entry c cs) = if maze c == t
+  then Entry c (findTiles t cs) else findTiles t cs
 
 ------------ event handling ------------
 
@@ -110,11 +117,12 @@ handleEvent (KeyPress key) (S _ startC boxes) | key `member` dirMap = let
     targetTile = mazeWithBoxes boxes targetC
     adjTile = mazeWithBoxes boxes (adjacentCoords d targetC)
     in isOk targetTile || (targetTile==Box &&
-      trace ("moved box: " <> pack (show (isOk adjTile)))
-      (isOk adjTile))
+      -- trace ("moved box: " <> pack (show (isOk adjTile)))
+      isOk adjTile)
   finalC = if canMove then targetC else startC
+  
   newBoxes = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxes
-  in S d finalC newBoxes
+  in if isWon boxes storageList then S d startC boxes else S d finalC newBoxes
 handleEvent _ (S d c boxes) = S d c boxes
 
 ------------ drawing ------------
@@ -152,13 +160,16 @@ player :: Picture
 player = colored red (styledLettering Bold Monospace ">")
 
 drawState :: State -> Picture
-drawState (S d c boxes) = drawPlayer & drawBoxes boxes & drawMaze where
-  drawPlayer = rotated theta player @> c
-  theta = case d of
-    R -> 0
-    U -> pi/2
-    L -> pi
-    D -> 3*pi/2
+drawState (S d c boxes) = if isWon boxes storageList
+  then scaled 3 3 (lettering "You won!")
+    & lettering "press esc to restart" @> C 0 (-3) 
+  else drawPlayer & drawBoxes boxes & drawMaze where
+    drawPlayer = rotated theta player @> c
+    theta = case d of
+      R -> 0
+      U -> pi/2
+      L -> pi
+      D -> 3*pi/2
 
 ------------ The complete activity ------------
 
