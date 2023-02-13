@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           CodeWorld
-import           Data.Map.Lazy      (Map, fromList, member, (!))
-import           Data.Maybe         (fromJust)
-import           Data.Text.Internal (Text)
+import           Data.Map.Lazy       (Map, fromList, member, (!))
+import           Data.Maybe          (fromJust)
+import           Data.Text.Internal  (Text)
+import           Language.Haskell.TH (Lit (IntegerL))
+import GHC.Base (BCO)
 
 ------------ lists ------------
 
@@ -15,6 +17,10 @@ mapList f (Entry c cs) = Entry (f c) (mapList f cs)
 combine :: List Picture -> Picture
 combine Empty        = blank
 combine (Entry p ps) = p & combine ps
+
+elemCoords :: List Coords -> Coords -> Bool
+elemCoords Empty _ = False
+elemCoords (Entry x cs) c  = (x `eqCoords` c) || elemCoords cs c
 
 ------------ coordinates and directions ------------
 
@@ -39,7 +45,7 @@ adjacentCoords d (C x y) = case d of
 
 ---TODO
 eqCoords :: Coords -> Coords -> Bool
-eqCoords = undefined
+eqCoords (C x1 y1) (C x2 y2) = x1==x2 && y1==y2
 
 moveFromTo :: Coords -> Coords -> Coords -> Coords
 moveFromTo = undefined
@@ -55,30 +61,44 @@ maze (C x y)
   | x     >= -2 && y     == 0 = Box
   | otherwise                 = Ground
 
-noBoxMaze :: Coords -> Tile
-noBoxMaze = undefined
+noBoxMaze :: Coords -> Tile -- ??why do they want this sig
+noBoxMaze c = if tile == Box then Ground else tile where tile = maze c
 
 mazeWithBoxes :: List Coords -> Coords -> Tile
-mazeWithBoxes = undefined
-
+mazeWithBoxes (Entry c Empty) _ = noBoxMaze c
+---TODO cleanup here plz
+mazeWithBoxes cs c = if elemCoords initialBoxList c then Box else noBoxMaze c
 ------------ state ------------
 
-data State = S Direction Coords
+data State = S Direction Coords (List Coords)
 initialState :: State
-initialState = S D (C (-3) 3)
+initialState = S D (C (-3) 3) initialBoxList
+---TODO create a function that can be used with travEdge
+coordsList :: List Coords -- This is soooo ugly
+coordsList = go n n where
+  n = 10
+  go :: Integer -> Integer -> List Coords
+  go (-11) (-11) = Empty
+  go (-11) y     = go n (y-1)
+  go x y         = Entry (C x y) (go (x-1) y)
 
-initialBoxes :: List Coords
-initialBoxes = undefined --TODO
+findBoxes :: List Coords -> List Coords
+findBoxes Empty        = Empty
+findBoxes (Entry c cs) = if maze c == Box
+  then Entry c (findBoxes cs) else findBoxes cs
 
-newState :: Direction -> Coords -> State
+initialBoxList :: List Coords
+initialBoxList = findBoxes coordsList
+
+newState :: Direction -> Coords -> List Coords -> State
 newState d c = S d (adjacentCoords d c)
 
 ------------ event handling ------------
 
 handleEvent :: Event -> State -> State
 -- handleEvent (KeyPress "Esc") _ = initialPose
-handleEvent (KeyPress key) (S _ startC) | key `member` dirMap = let
-  (S d targetC) = newState (dirMap!key) startC
+handleEvent (KeyPress key) (S _ startC boxes) | key `member` dirMap = let
+  (S d targetC boxes) = newState (dirMap!key) startC boxes
   isOk tile = case tile of
       Ground  -> True
       Storage -> True
@@ -86,8 +106,8 @@ handleEvent (KeyPress key) (S _ startC) | key `member` dirMap = let
   finalC
     | isOk (maze targetC) = targetC
     | otherwise           = startC
-  in S d finalC
-handleEvent _ (S d c) = S d c
+  in S d finalC boxes
+handleEvent _ (S d c boxes) = S d c boxes
 
 ------------ drawing ------------
 
@@ -114,7 +134,7 @@ drawMaze :: Picture
 drawMaze = travEdge (\x -> travEdge $ drawTileAt . C x)
 
 player :: State -> Picture
-player (S d c) =
+player (S d c boxes) =
   rotated theta (colored red (styledLettering Bold Monospace ">")) @> c where
   theta = case d of
     R -> 0
@@ -130,7 +150,7 @@ drawBoxes :: List Coords -> Picture
 drawBoxes cs = combine (mapList (atCoords (fromTile Box)) cs)
 
 drawState :: State -> Picture
-drawState s = player s & drawMaze --TODO draw boxes
+drawState s = player s & drawMaze ---TODO draw boxes
 
 ------------ The complete activity ------------
 
