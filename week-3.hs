@@ -1,10 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           CodeWorld
-import           Data.Map.Lazy       (Map, fromList, member, (!))
-import           Data.Maybe          (fromJust)
-import           Data.Text.Internal  (Text)
-import           GHC.Base            (BCO)
-import           Language.Haskell.TH (Lit (IntegerL))
+import           Data.Map.Lazy      (Map, fromList, member, (!))
+import           Data.Maybe         (fromJust)
+import           Data.Text          (pack, Text) -- y tho
+-- import           Data.Text.Internal (Text)
 
 ------------ lists ------------
 
@@ -43,7 +42,6 @@ adjacentCoords d (C x y) = case d of
   L -> C (x-1)  y
   D -> C  x    (y-1)
 
----TODO
 eqCoords :: Coords -> Coords -> Bool
 eqCoords (C x1 y1) (C x2 y2) = x1==x2 && y1==y2
 
@@ -64,7 +62,7 @@ noBoxMaze c = if tile == Box then Ground else tile where tile = maze c
 mazeWithBoxes :: List Coords -> Coords -> Tile
 mazeWithBoxes (Entry c Empty) _ = noBoxMaze c
 ---TODO cleanup here plz
-mazeWithBoxes cs c = if elemCoords initialBoxList c then Box else noBoxMaze c
+mazeWithBoxes cs c = if elemCoords cs c then Box else noBoxMaze c
 
 ------------ state ------------
 
@@ -92,7 +90,7 @@ findBoxes (Entry c cs) = if maze c == Box
 ------------ event handling ------------
 
 moveFromTo :: Coords -> Coords -> Coords -> Coords -- * CONFIRMED WORKS
-moveFromTo from to tile = if from `eqCoords` tile then to else tile
+moveFromTo from to box = if from `eqCoords` box then to else box
 
 handleEvent :: Event -> State -> State
 -- handleEvent (KeyPress "Esc") _ = initialPose
@@ -112,9 +110,10 @@ handleEvent (KeyPress key) (S _ startC boxes) | key `member` dirMap = let
   canMove = let
     targetTile = mazeWithBoxes boxes targetC
     adjTile = mazeWithBoxes boxes (adjacentCoords d targetC)
-    in isOk targetTile || (targetTile==Box && isOk adjTile)
+    in isOk targetTile || (targetTile==Box && 
+      trace ("adjTile " <> pack (show (isOk adjTile)))
+      (isOk adjTile))
   finalC = if canMove then targetC else startC
-
   newBoxes = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxes
   in S d finalC newBoxes
 handleEvent _ (S d c boxes) = S d c boxes
@@ -166,8 +165,8 @@ drawState (S d c boxes) = drawPlayer & drawBoxes boxes & drawMaze where
 
 sokoban :: Activity State
 -- omg i can't use reduce because i implemented the list myself
-sokoban = Activity initialState handleEvent 
-  (\s-> combine (mapList (\c-> fromTile (mazeWithBoxes initialBoxList c) @> c) coordsList))
+sokoban = Activity initialState handleEvent drawState
+
 
 ------------ The general activity type ------------
 
