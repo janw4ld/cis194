@@ -3,8 +3,8 @@ import           CodeWorld
 import           Data.Map.Lazy       (Map, fromList, member, (!))
 import           Data.Maybe          (fromJust)
 import           Data.Text.Internal  (Text)
+import           GHC.Base            (BCO)
 import           Language.Haskell.TH (Lit (IntegerL))
-import GHC.Base (BCO)
 
 ------------ lists ------------
 
@@ -19,8 +19,8 @@ combine Empty        = blank
 combine (Entry p ps) = p & combine ps
 
 elemCoords :: List Coords -> Coords -> Bool
-elemCoords Empty _ = False
-elemCoords (Entry x cs) c  = (x `eqCoords` c) || elemCoords cs c
+elemCoords Empty _        = False
+elemCoords (Entry x cs) c = (x `eqCoords` c) || elemCoords cs c
 
 ------------ coordinates and directions ------------
 
@@ -47,9 +47,6 @@ adjacentCoords d (C x y) = case d of
 eqCoords :: Coords -> Coords -> Bool
 eqCoords (C x1 y1) (C x2 y2) = x1==x2 && y1==y2
 
-moveFromTo :: Coords -> Coords -> Coords -> Coords
-moveFromTo = undefined
-
 ------------ the maze ------------
 
 maze :: Coords -> Tile
@@ -73,6 +70,10 @@ mazeWithBoxes cs c = if elemCoords initialBoxList c then Box else noBoxMaze c
 data State = S Direction Coords (List Coords)
 initialState :: State
 initialState = S D (C (-3) 3) initialBoxList
+
+initialBoxList :: List Coords
+initialBoxList = findBoxes coordsList
+
 ---TODO create a function that can be used with travEdge
 coordsList :: List Coords -- This is soooo ugly
 coordsList = go n n where
@@ -87,26 +88,28 @@ findBoxes Empty        = Empty
 findBoxes (Entry c cs) = if maze c == Box
   then Entry c (findBoxes cs) else findBoxes cs
 
-initialBoxList :: List Coords
-initialBoxList = findBoxes coordsList
-
-newState :: Direction -> Coords -> List Coords -> State
-newState d c = S d (adjacentCoords d c)
 
 ------------ event handling ------------
+moveFromTo :: Coords -> Coords -> Coords -> Coords -- * CONFIRMED WORKS
+moveFromTo from to tile = if from `eqCoords` tile then to else tile
 
 handleEvent :: Event -> State -> State
 -- handleEvent (KeyPress "Esc") _ = initialPose
 handleEvent (KeyPress key) (S _ startC boxes) | key `member` dirMap = let
-  (S d targetC boxes) = newState (dirMap!key) startC boxes
-  isOk tile = case tile of
-      Ground  -> True
-      Storage -> True
-      _       -> False
+  (S d targetC _) = newPose (dirMap!key) startC Empty
+  newPose d c = S d (adjacentCoords d c)
+  
   finalC
     | isOk (maze targetC) = targetC
     | otherwise           = startC
-  in S d finalC boxes
+  isOk tile = case tile of
+    Ground  -> True
+    Storage -> True
+    Box     -> True 
+    _       -> False
+  
+  newBoxes = mapList (moveFromTo targetC finalC) boxes
+  in S d finalC newBoxes
 handleEvent _ (S d c boxes) = S d c boxes
 
 ------------ drawing ------------
@@ -127,31 +130,30 @@ travEdge fn = go 10 where
   go (-10) = fn (-10)
   go n     = fn n & go (n-1)
 
-drawTileAt :: Coords -> Picture
-drawTileAt c = fromTile (maze c) @> c
+atCoords :: Picture -> Coords -> Picture
+(@>) = atCoords
+atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
+
+drawTileAt :: (Coords->Tile) -> Coords -> Picture
+drawTileAt fn c = fromTile (fn c) @> c
 
 drawMaze :: Picture
-drawMaze = travEdge (\x -> travEdge $ drawTileAt . C x)
+drawMaze = travEdge (\x -> travEdge $ drawTileAt noBoxMaze . C x)
 
-player :: State -> Picture
-player (S d c boxes) =
-  rotated theta (colored red (styledLettering Bold Monospace ">")) @> c where
+drawBoxes :: List Coords -> Picture
+drawBoxes cs = combine (mapList (atCoords (fromTile Box)) cs)
+
+player :: Picture
+player = colored red (styledLettering Bold Monospace ">")
+
+drawState :: State -> Picture
+drawState (S d c boxes) = drawPlayer & drawBoxes boxes & drawMaze where
+  drawPlayer = rotated theta player @> c
   theta = case d of
     R -> 0
     U -> pi/2
     L -> pi
     D -> 3*pi/2
-
-atCoords :: Picture -> Coords -> Picture
-(@>) = atCoords
-atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
-
-drawBoxes :: List Coords -> Picture
-drawBoxes cs = combine (mapList (atCoords (fromTile Box)) cs)
-
-drawState :: State -> Picture
-drawState s = player s & drawMaze ---TODO draw boxes
-
 ------------ The complete activity ------------
 
 sokoban :: Activity State
