@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations -fno-warn-unused-binds #-}
 
-import           CodeWorld
+import CodeWorld
 
 main :: IO ()
 main = exercise3
@@ -62,17 +62,16 @@ data Tile = Wall | Ground | Storage | Box | Blank
 box, wall, ground, storage :: Picture
 
 fromTile tile = case tile of
-  Wall    -> wall
-  Ground  -> ground
+  Wall -> wall
+  Ground -> ground
   Storage -> storage
-  Box     -> box
-  _       -> blank
+  Box -> box
+  _ -> blank
 
 box = colored brown (solidRectangle 1 1)
 wall = colored grey (solidRectangle 1 1)
 ground = colored yellow (solidRectangle 1 1)
 storage = colored black (solidCircle 0.3) & ground
-
 
 data Coords = C Integer Integer
 
@@ -84,20 +83,20 @@ drawTileAt c = moveTo (fromTile (maze c)) c
 
 drawRow :: Coords -> Picture
 drawRow (C (-10) y) = drawTileAt (C (-10) y)
-drawRow (C x y)     = drawTileAt (C x y) & drawRow (C (x - 1) y)
+drawRow (C x y) = drawTileAt (C x y) & drawRow (C (x - 1) y)
 
 drawGrid :: Coords -> Picture
 drawGrid (C x (-10)) = drawRow (C x (-10))
-drawGrid (C x y)     = drawRow (C x y) & drawGrid (C x (y - 1))
+drawGrid (C x y) = drawRow (C x y) & drawGrid (C x (y - 1))
 
 exercise3 :: IO ()
 exercise3 = drawingOf (drawGrid (C 10 10))
 
 maze :: Coords -> Tile
 maze (C x y)
-  | abs x > 4  || abs y > 4  = Blank
+  | abs x > 4 || abs y > 4 = Blank
   | abs x == 4 || abs y == 4 = Wall
-  | x == 2     && y <= 0     = Wall
-  | x == 3     && y <= 0     = Storage
-  | x >= -2    && y == 0     = Box
-  | otherwise                = Ground
+  | x == 2 && y <= 0 = Wall
+  | x == 3 && y <= 0 = Storage
+  | x >= -2 && y == 0 = Box
+  | otherwise = Ground
