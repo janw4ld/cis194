@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import CodeWorld
+import CodeWorld hiding ((&))
+import CodeWorld qualified ((&))
 import Data.Map.Lazy (Map, fromList, member, (!))
 import Data.Text (Text, pack)
 
@@ -19,8 +20,14 @@ combine (Entry p ps) = p & combine ps
 elemList :: Eq a => List a -> a -> Bool
 elemList Empty _ = False
 elemList (Entry x cs) c = (x == c) || elemList cs c
-class Merge a where ---TODO reshadow original (&) ?
-  merge :: a -> a -> a
+
+------------ meta ------------
+class Merge a where
+  (&) :: a -> a -> a
+instance (Merge Picture) where (&) = (CodeWorld.&)
+instance (Merge (List Coords)) where
+  (&) Empty cs' = cs'
+  (&) (Entry c cs) cs' = Entry c ((&) cs cs')
 
 ------------ coordinates and directions ------------
 
@@ -82,9 +89,6 @@ isWon :: List Coords -> List Coords -> Bool -- I know I ignored the requirements
 isWon (Entry c cs) xs = elemList xs c && isWon cs xs
 isWon Empty _ = True
 
-instance (Merge (List Coords)) where
-  merge Empty cs' = cs'
-  merge (Entry c cs) cs' = Entry c (merge cs cs')
 coordsList :: List Coords
 coordsList = travEdge $
   \x -> travEdge $
@@ -152,10 +156,8 @@ travEdge fn = go 10
  where
   go :: Merge a => Integer -> a
   go (-10) = fn (-10)
-  go n = fn n `merge` go (n - 1)
+  go n = fn n & go (n - 1)
 
-instance (Merge Picture) where
-  merge p p' = p & p'
 drawMaze :: Picture
 drawMaze = travEdge $
   \x -> travEdge $
