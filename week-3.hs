@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import CodeWorld hiding ((&))
-import CodeWorld qualified ((&))
+import CodeWorld {- hiding ((&))
+                 import CodeWorld qualified ((&)) -}
+
 import Data.Map.Lazy (Map, fromList, member, (!))
 import Data.Text (Text, pack)
 
@@ -23,12 +24,12 @@ elemList (Entry x cs) c = (x == c) || elemList cs c
 
 ------------ meta ------------
 class Merge a where
-  (&) ::  a -> a -> a
-  infixr 0 &
-instance (Merge Picture) where (&) = (CodeWorld.&)
+  merge :: a -> a -> a
+  infixr 0 `merge`
+instance (Merge Picture) where merge = (CodeWorld.&)
 instance (Merge (List Coords)) where
-  (&) Empty cs' = cs'
-  (&) (Entry c cs) cs' = Entry c ((&) cs cs')
+  merge Empty cs' = cs'
+  merge (Entry c cs) cs' = Entry c (merge cs cs')
 
 ------------ coordinates and directions ------------
 
@@ -157,7 +158,7 @@ travEdge fn = go 10
  where
   go :: Merge a => Integer -> a
   go (-10) = fn (-10)
-  go n = fn n & go (n - 1)
+  go n = fn n `merge` go (n - 1)
 
 drawMaze :: Picture
 drawMaze = travEdge $
@@ -222,7 +223,10 @@ resetable (Activity initial handler draw) =
 ------------ start screen ------------
 
 startScreen :: Picture
-startScreen = scaled 3 3 (lettering "Sokoban!") & lettering "press space to start" @> C 0 (-3)
+startScreen =
+  scaled 3 3 (lettering "Sokoban!")
+    & lettering "press space to start"
+    @> C 0 (-3)
 
 data SSState world = StartScreen | Running world
 
