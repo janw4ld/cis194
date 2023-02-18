@@ -101,13 +101,10 @@ coordsList =
     travEdge $ \y ->
       Entry (C x y) Empty
 
-is :: Coords -> Tile -> Bool
-is = (==) . maze
-
 findTiles :: Tile -> List Coords -> List Coords
 findTiles _ Empty = Empty
 findTiles t (Entry c cs)
-  | c `is` t = Entry c (findTiles t cs)
+  | maze c == t = Entry c (findTiles t cs)
   | otherwise = findTiles t cs
 
 ------------ event handling ------------
@@ -119,30 +116,25 @@ handleEvent :: Event -> State -> State
 handleEvent (KeyPress key) (S _ startC boxList)
   | key `member` dirMap && not gameWon = S d finalC newBoxList
  where
+  gameWon = boxList `subset` storageList
+
   newPose d c = S d (adjacentCoords d c)
   (S d targetC _) = newPose (dirMap ! key) startC Empty
-
-  final startC targetC
-    | isOk (mazeWithBoxes boxList targetC) = targetC
+  finalC
+    | canMove = targetC
     | otherwise = startC
-
-  isOk tile = case tile of
-    Ground -> True
-    Storage -> True
-    _ -> False
 
   canMove = isOk targetTile || (targetTile == Box && isOk adjTile)
    where
     targetTile = mazeWithBoxes boxList targetC
     adjTile = mazeWithBoxes boxList (adjacentCoords d targetC)
 
-  finalC
-    | canMove = targetC
-    | otherwise = startC
+  isOk tile = case tile of
+    Ground -> True
+    Storage -> True
+    _ -> False
 
   newBoxList = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxList
-
-  gameWon = boxList `subset` storageList
 handleEvent _ s = s
 
 ------------ drawing ------------
