@@ -101,12 +101,14 @@ coordsList =
     travEdge $ \y ->
       Entry (C x y) Empty
 
+is :: Coords -> Tile -> Bool
+is = (==) . maze
+
 findTiles :: Tile -> List Coords -> List Coords
 findTiles _ Empty = Empty
-findTiles t (Entry c cs) =
-  if maze c == t
-    then Entry c (findTiles t cs)
-    else findTiles t cs
+findTiles t (Entry c cs)
+  | c `is` t = Entry c (findTiles t cs)
+  | otherwise = findTiles t cs
 
 ------------ event handling ------------
 
