@@ -23,7 +23,8 @@ elemList (Entry x cs) c = (x == c) || elemList cs c
 
 ------------ meta ------------
 class Merge a where
-  (&) :: a -> a -> a
+  (&) ::  a -> a -> a
+  infixr 0 &
 instance (Merge Picture) where (&) = (CodeWorld.&)
 instance (Merge (List Coords)) where
   (&) Empty cs' = cs'
