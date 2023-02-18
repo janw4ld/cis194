@@ -19,6 +19,8 @@ combine (Entry p ps) = p & combine ps
 elemList :: Eq a => List a -> a -> Bool
 elemList Empty _ = False
 elemList (Entry x cs) c = (x == c) || elemList cs c
+class Merge a where ---TODO reshadow original (&) ?
+  merge :: a -> a -> a
 
 ------------ coordinates and directions ------------
 
@@ -80,23 +82,13 @@ isWon :: List Coords -> List Coords -> Bool -- I know I ignored the requirements
 isWon (Entry c cs) xs = elemList xs c && isWon cs xs
 isWon Empty _ = True
 
----TODO create a function that can be used with travEdge
-coordsList :: List Coords -- This is soooo ugly
-coordsList = go n n
- where
-  n = 10
-  go :: Integer -> Integer -> List Coords
-  go (-11) (-11) = Empty
-  go (-11) y = go n (y - 1)
-  go x y = Entry (C x y) (go (x - 1) y)
-
-hysm :: (Integer -> List Coords) -> List Coords
-hysm fn = go 10
- where
-  go :: Integer -> List Coords
-  go (-10) = fn (-10)
-
--- go n     = fn n (undefined) go (n-1) ---TODO
+instance (Merge (List Coords)) where
+  merge Empty cs' = cs'
+  merge (Entry c cs) cs' = Entry c (merge cs cs')
+coordsList :: List Coords
+coordsList = travEdge $
+  \x -> travEdge $
+    \y -> Entry (C x y) Empty
 
 findTiles :: Tile -> List Coords -> List Coords
 findTiles _ Empty = Empty
@@ -155,12 +147,19 @@ fromTile tile = case tile of
   Box -> colored brown (solidRectangle 1 1)
   _ -> blank
 
-travEdge :: (Integer -> Picture) -> Picture
+travEdge :: forall a. Merge a => (Integer -> a) -> a
 travEdge fn = go 10
  where
-  go :: Integer -> Picture
+  go :: Merge a => Integer -> a
   go (-10) = fn (-10)
-  go n = fn n & go (n - 1)
+  go n = fn n `merge` go (n - 1)
+
+instance (Merge Picture) where
+  merge p p' = p & p'
+drawMaze :: Picture
+drawMaze = travEdge $
+  \x -> travEdge $
+    \y -> drawTileAt noBoxMaze (C x y)
 
 atCoords :: Picture -> Coords -> Picture
 (@>) = atCoords
@@ -168,9 +167,6 @@ atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 
 drawTileAt :: (Coords -> Tile) -> Coords -> Picture
 drawTileAt fn c = fromTile (fn c) @> c
-
-drawMaze :: Picture
-drawMaze = travEdge (\x -> travEdge $ drawTileAt noBoxMaze . C x)
 
 drawBoxes :: List Coords -> Picture
 drawBoxes cs = combine (mapList (atCoords (fromTile Box)) cs)
