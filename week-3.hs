@@ -3,6 +3,8 @@
 import CodeWorld {- hiding ((&))
                  import CodeWorld qualified ((&)) -}
 
+import Prelude hiding (elem)
+
 import Data.Map.Lazy (Map, fromList, member, (!))
 import Data.Text (Text, pack)
 
@@ -18,9 +20,9 @@ combine :: List Picture -> Picture
 combine Empty = blank
 combine (Entry p ps) = p & combine ps
 
-elemList :: Eq a => List a -> a -> Bool
-elemList Empty _ = False
-elemList (Entry x cs) c = (x == c) || elemList cs c
+elem :: Eq a => a -> List a -> Bool
+elem _ Empty = False
+elem c (Entry x cs) = (x == c) || c `elem` cs
 
 ------------ meta ------------
 class Merge a where
@@ -67,13 +69,15 @@ maze (C x y)
   | x >= -2 && y == 0 = Box
   | otherwise = Ground
 
-noBoxMaze :: Coords -> Tile -- ??why do they want this sig
-noBoxMaze c = if tile == Box then Ground else tile where tile = maze c
+noBoxMaze :: Coords -> Tile
+noBoxMaze c = case maze c of
+  Box -> Ground
+  other -> other
 
 mazeWithBoxes :: List Coords -> Coords -> Tile
----TODO cleanup here plz
-mazeWithBoxes (Entry c Empty) _ = noBoxMaze c
-mazeWithBoxes cs c = if elemList cs c then Box else noBoxMaze c
+mazeWithBoxes cs c
+  | c `elem` cs = Box
+  | otherwise = noBoxMaze c
 
 ------------ state ------------
 
@@ -87,14 +91,15 @@ initialBoxList = findTiles Box coordsList
 storageList :: List Coords
 storageList = findTiles Storage coordsList
 
-isWon :: List Coords -> List Coords -> Bool -- I know I ignored the requirements, this is much simpler
-isWon (Entry c cs) xs = elemList xs c && isWon cs xs
-isWon Empty _ = True
+subset :: List Coords -> List Coords -> Bool -- I know I ignored the requirements, this is much simpler
+subset (Entry c cs) xs = c `elem` xs && cs `subset` xs
+subset Empty _ = True
 
 coordsList :: List Coords
-coordsList = travEdge $
-  \x -> travEdge $
-    \y -> Entry (C x y) Empty
+coordsList =
+  travEdge $ \x ->
+    travEdge $ \y ->
+      Entry (C x y) Empty
 
 findTiles :: Tile -> List Coords -> List Coords
 findTiles _ Empty = Empty
@@ -109,38 +114,34 @@ moveFromTo :: Eq a => a -> a -> a -> a
 moveFromTo c0 c1 c = if c0 == c then c1 else c
 
 handleEvent :: Event -> State -> State
-handleEvent (KeyPress key) (S _ startC boxes)
-  | key `member` dirMap =
-      let
-        (S d targetC _) = newPose (dirMap ! key) startC Empty
-        newPose d c = S d (adjacentCoords d c)
+handleEvent (KeyPress key) (S _ startC boxList)
+  | key `member` dirMap && not gameWon = S d finalC newBoxList
+ where
+  newPose d c = S d (adjacentCoords d c)
+  (S d targetC _) = newPose (dirMap ! key) startC Empty
 
-        final s t
-          | isOk (mazeWithBoxes boxes t) = t
-          | otherwise = s
-        isOk tile = case tile of
-          Ground -> True
-          Storage -> True
-          -- Box     -> True
-          _ -> False
+  final startC targetC
+    | isOk (mazeWithBoxes boxList targetC) = targetC
+    | otherwise = startC
 
-        canMove =
-          let
-            targetTile = mazeWithBoxes boxes targetC
-            adjTile = mazeWithBoxes boxes (adjacentCoords d targetC)
-           in
-            isOk targetTile
-              || ( targetTile == Box
-                    &&
-                    -- trace ("moved box: " <> pack (show (isOk adjTile)))
-                    isOk adjTile
-                 )
-        finalC = if canMove then targetC else startC
+  isOk tile = case tile of
+    Ground -> True
+    Storage -> True
+    _ -> False
 
-        newBoxes = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxes
-       in
-        if isWon boxes storageList then S d startC boxes else S d finalC newBoxes
-handleEvent _ (S d c boxes) = S d c boxes
+  canMove = isOk targetTile || (targetTile == Box && isOk adjTile)
+   where
+    targetTile = mazeWithBoxes boxList targetC
+    adjTile = mazeWithBoxes boxList (adjacentCoords d targetC)
+
+  finalC
+    | canMove = targetC
+    | otherwise = startC
+
+  newBoxList = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxList
+
+  gameWon = boxList `subset` storageList
+handleEvent _ s = s
 
 ------------ drawing ------------
 
@@ -161,9 +162,10 @@ travEdge fn = go 10
   go n = fn n `merge` go (n - 1)
 
 drawMaze :: Picture
-drawMaze = travEdge $
-  \x -> travEdge $
-    \y -> drawTileAt noBoxMaze (C x y)
+drawMaze =
+  travEdge $ \x ->
+    travEdge $ \y ->
+      drawTileAt noBoxMaze (C x y)
 
 atCoords :: Picture -> Coords -> Picture
 (@>) = atCoords
@@ -179,13 +181,13 @@ player :: Picture
 player = colored red (styledLettering Bold Monospace ">")
 
 drawState :: State -> Picture
-drawState (S d c boxes) =
-  if isWon boxes storageList
+drawState (S d c boxList) =
+  if boxList `subset` storageList
     then
       scaled 3 3 (lettering "You won!")
         & lettering "press esc to restart"
         @> C 0 (-3)
-    else drawPlayer & drawBoxes boxes & drawMaze
+    else drawPlayer & drawBoxes boxList & drawMaze
  where
   drawPlayer = rotated theta player @> c
   theta = case d of
