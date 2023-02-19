@@ -1,12 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import CodeWorld {- hiding ((&))
-                 import CodeWorld qualified ((&)) -}
-
+import CodeWorld
 import Prelude hiding (elem)
 
 import Data.Map.Lazy (Map, fromList, member, (!))
-import Data.Text (Text, pack)
+import Data.Text (Text)
 
 ------------ lists ------------
 
@@ -36,10 +34,13 @@ instance (Merge (List Coords)) where
 applyRange :: forall a. Merge a => Integer -> Integer -> (Integer -> a) -> a
 applyRange start end fn
   | start == end = fn end
-  | start < end = go (1 +)
+  | start < end = go (\x -> x + 1)
   | start > end = go (\x -> x - 1)
  where
   go op = fn start `merge` applyRange (op start) end fn
+
+travEdge :: Merge a => (Integer -> a) -> a
+travEdge = applyRange (-10) 10
 
 ------------ coordinates and directions ------------
 
@@ -102,9 +103,6 @@ storageList = findTiles Storage coordsList
 subset :: List Coords -> List Coords -> Bool -- I know I ignored the requirements, this is much simpler
 subset (Entry c cs) xs = c `elem` xs && cs `subset` xs
 subset Empty _ = True
-
-travEdge :: Merge a => (Integer -> a) -> a
-travEdge = applyRange (-10) 10
 
 coordsList :: List Coords
 coordsList =
