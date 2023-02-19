@@ -22,7 +22,15 @@ elem :: Eq a => a -> List a -> Bool
 elem _ Empty = False
 elem c (Entry x cs) = (x == c) || c `elem` cs
 
+allList :: (a -> Bool) -> List a -> Bool -- and-reduction
+allList fn Empty = True
+allList fn (Entry x xs) = fn x && allList fn xs
+
+subset :: Eq a => List a -> List a -> Bool
+subset xs ys = allList (`elem` ys) xs
+
 ------------ meta ------------
+
 class Merge a where
   merge :: a -> a -> a
   infixr 0 `merge`
@@ -37,7 +45,7 @@ applyRange start end fn
   | start < end = go (\x -> x + 1)
   | start > end = go (\x -> x - 1)
  where
-  go op = fn start `merge` applyRange (op start) end fn
+  go next = fn start `merge` applyRange (next start) end fn
 
 travEdge :: Merge a => (Integer -> a) -> a
 travEdge = applyRange (-10) 10
@@ -100,10 +108,6 @@ initialBoxList = findTiles Box coordsList
 storageList :: List Coords
 storageList = findTiles Storage coordsList
 
-subset :: List Coords -> List Coords -> Bool
-subset (Entry c cs) xs = c `elem` xs && cs `subset` xs
-subset Empty _ = True
-
 coordsList :: List Coords
 coordsList =
   travEdge $ \x ->
@@ -131,7 +135,7 @@ handleEvent (KeyPress key) (S _ startC boxList)
   finalC = if canMove then targetC else startC
   targetC = adjacentCoords d startC
 
-  canMove = isOk targetTile || (targetTile == Box && isOk adjTile) 
+  canMove = isOk targetTile || (targetTile == Box && isOk adjTile)
   targetTile = mazeWithBoxes boxList targetC
   adjTile = mazeWithBoxes boxList (adjacentCoords d targetC)
 
