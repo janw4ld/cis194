@@ -152,32 +152,26 @@ fromTile tile = case tile of
   Box -> colored brown (solidRectangle 1 1)
   _ -> blank
 
-drawMaze :: Picture
-drawMaze = scanMaze (drawTileAt noBoxMaze)
-
 atCoords :: Picture -> Coords -> Picture
 (@>) = atCoords
 atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 
-drawTileAt :: (Coords -> Tile) -> Coords -> Picture
-drawTileAt fn c = fromTile (fn c) @> c
+drawMaze :: Picture
+drawMaze = scanMaze $ \c -> fromTile (noBoxMaze c) @> c
 
 drawBoxes :: List Coords -> Picture
-drawBoxes cs =
-  reduce merge id $
-    mapList (fromTile Box @>) cs
+drawBoxes cs = reduce merge id $ mapList (fromTile Box @>) cs
 
 player :: Picture
 player = colored red (styledLettering Bold Monospace ">")
 
 drawState :: State -> Picture
-drawState (S d c boxList) =
-  if boxList `subset` storageList
-    then
+drawState (S d c boxList)
+  | boxList `subset` storageList =
       scaled 3 3 (lettering "You won!")
         & lettering "press esc to restart"
         @> C 0 (-3)
-    else drawPlayer & drawBoxes boxList & drawMaze
+  | otherwise = drawPlayer & drawBoxes boxList & drawMaze
  where
   drawPlayer = rotated theta player @> c
   theta = case d of
