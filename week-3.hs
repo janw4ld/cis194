@@ -100,7 +100,7 @@ initialBoxList = findTiles Box coordsList
 storageList :: List Coords
 storageList = findTiles Storage coordsList
 
-subset :: List Coords -> List Coords -> Bool -- I know I ignored the requirements, this is much simpler
+subset :: List Coords -> List Coords -> Bool
 subset (Entry c cs) xs = c `elem` xs && cs `subset` xs
 subset Empty _ = True
 
@@ -123,20 +123,17 @@ moveFromTo c0 c1 c = if c0 == c then c1 else c
 
 handleEvent :: Event -> State -> State
 handleEvent (KeyPress key) (S _ startC boxList)
-  | key `member` dirMap && not gameWon = S d finalC newBoxList
+  | key `member` dirMap && not (boxList `subset` storageList) =
+      S d finalC newBoxList
  where
-  gameWon = boxList `subset` storageList
+  d = dirMap ! key
 
-  newPose d c = S d (adjacentCoords d c)
-  (S d targetC _) = newPose (dirMap ! key) startC Empty
-  finalC
-    | canMove = targetC
-    | otherwise = startC
+  finalC = if canMove then targetC else startC
+  targetC = adjacentCoords d startC
 
-  canMove = isOk targetTile || (targetTile == Box && isOk adjTile)
-   where
-    targetTile = mazeWithBoxes boxList targetC
-    adjTile = mazeWithBoxes boxList (adjacentCoords d targetC)
+  canMove = isOk targetTile || (targetTile == Box && isOk adjTile) 
+  targetTile = mazeWithBoxes boxList targetC
+  adjTile = mazeWithBoxes boxList (adjacentCoords d targetC)
 
   isOk tile = case tile of
     Ground -> True
