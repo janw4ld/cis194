@@ -18,17 +18,11 @@ reduce :: (b -> b -> b) -> (a -> b) -> List a -> b -- it's wonky
 reduce _ isOk (Entry x Empty) = isOk x
 reduce select isOk (Entry x xs) = select (isOk x) (reduce select isOk xs)
 
-combine :: Merge a => List a -> a
-combine = reduce merge id
-
 elem :: Eq a => a -> List a -> Bool
 elem c = reduce (||) (== c)
 
 subset :: Eq a => List a -> List a -> Bool
 subset xs ys = reduce (&&) (`elem` ys) xs
-
-appendList :: List a -> List a -> List a
-appendList = merge
 
 ------------ merge ------------
 
@@ -40,16 +34,13 @@ instance (Merge (List a)) where
   merge Empty cs' = cs'
   merge (Entry c cs) cs' = Entry c (merge cs cs')
 
-applyRange :: forall a. Merge a => Integer -> Integer -> (Integer -> a) -> a
-applyRange start end fn
+applyRange :: forall a. Merge a => (Integer, Integer) -> (Integer -> a) -> a
+applyRange (start, end) fn
   | start == end = fn end
   | start < end = go (\x -> x + 1)
   | start > end = go (\x -> x - 1)
  where
-  go next = fn start `merge` applyRange (next start) end fn
-
-travEdge :: Merge a => (Integer -> a) -> a
-travEdge = applyRange (-10) 10
+  go next = fn start `merge` applyRange (next start, end) fn
 
 ------------ coordinates and directions ------------
 
@@ -97,11 +88,16 @@ mazeWithBoxes cs c
   | c `elem` cs = Box
   | otherwise = noBoxMaze c
 
+scanMaze :: Merge a => (Coords -> a) -> a
+scanMaze fn =
+  applyRange (-10, 10) $ \x ->
+    applyRange (-10, 10) $ \y -> fn (C x y)
+
 ------------ state ------------
 
 data State = S Direction Coords (List Coords)
 initialState :: State
-initialState = S D (C (-3) 3) initialBoxList
+initialState = S R (C (-3) 3) initialBoxList
 
 initialBoxList :: List Coords
 initialBoxList = findTiles Box coordsList
@@ -110,18 +106,13 @@ storageList :: List Coords
 storageList = findTiles Storage coordsList
 
 coordsList :: List Coords
-coordsList =
-  travEdge $ \x ->
-    travEdge $ \y ->
-      Entry (C x y) Empty
+coordsList = scanMaze $ \c -> Entry c Empty
 
 findTiles :: Tile -> List Coords -> List Coords
 findTiles _ Empty = Empty
 findTiles t (Entry c cs)
   | maze c == t = Entry c (findTiles t cs)
   | otherwise = findTiles t cs
-
-hysm x y = ()
 
 ------------ event handling ------------
 
@@ -162,10 +153,7 @@ fromTile tile = case tile of
   _ -> blank
 
 drawMaze :: Picture
-drawMaze =
-  travEdge $ \x ->
-    travEdge $ \y ->
-      drawTileAt noBoxMaze (C x y)
+drawMaze = scanMaze (drawTileAt noBoxMaze)
 
 atCoords :: Picture -> Coords -> Picture
 (@>) = atCoords
@@ -175,7 +163,9 @@ drawTileAt :: (Coords -> Tile) -> Coords -> Picture
 drawTileAt fn c = fromTile (fn c) @> c
 
 drawBoxes :: List Coords -> Picture
-drawBoxes cs = combine (mapList (atCoords (fromTile Box)) cs)
+drawBoxes cs =
+  reduce merge id $
+    mapList (fromTile Box @>) cs
 
 player :: Picture
 player = colored red (styledLettering Bold Monospace ">")
