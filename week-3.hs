@@ -33,6 +33,14 @@ instance (Merge (List Coords)) where
   merge Empty cs' = cs'
   merge (Entry c cs) cs' = Entry c (merge cs cs')
 
+applyRange :: forall a. Merge a => Integer -> Integer -> (Integer -> a) -> a
+applyRange start end fn
+  | start == end = fn end
+  | start < end = go (1 +)
+  | start > end = go (\x -> x - 1)
+ where
+  go op = fn start `merge` applyRange (op start) end fn
+
 ------------ coordinates and directions ------------
 
 data Coords = C Integer Integer
@@ -95,6 +103,9 @@ subset :: List Coords -> List Coords -> Bool -- I know I ignored the requirement
 subset (Entry c cs) xs = c `elem` xs && cs `subset` xs
 subset Empty _ = True
 
+travEdge :: Merge a => (Integer -> a) -> a
+travEdge = applyRange (-10) 10
+
 coordsList :: List Coords
 coordsList =
   travEdge $ \x ->
@@ -147,13 +158,6 @@ fromTile tile = case tile of
   Storage -> colored black (solidCircle 0.3) & fromTile Ground
   Box -> colored brown (solidRectangle 1 1)
   _ -> blank
-
-travEdge :: forall a. Merge a => (Integer -> a) -> a
-travEdge fn = go 10
- where
-  go :: Merge a => Integer -> a
-  go (-10) = fn (-10)
-  go n = fn n `merge` go (n - 1)
 
 drawMaze :: Picture
 drawMaze =
