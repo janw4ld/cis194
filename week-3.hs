@@ -18,24 +18,33 @@ combine :: List Picture -> Picture
 combine Empty = blank
 combine (Entry p ps) = p & combine ps
 
+-- elem :: Eq a => a -> List a -> Bool
+-- elem _ Empty = False
+-- elem c (Entry x xs) = (x == c) || c `elem` xs
+
+is :: (a -> a -> Bool) -> a -> List a -> Bool
+is _ _ Empty = False
+is fn c (Entry x xs) = fn c x || is fn c xs
 elem :: Eq a => a -> List a -> Bool
-elem _ Empty = False
-elem c (Entry x cs) = (x == c) || c `elem` cs
+elem = is (==)
 
 allList :: (a -> Bool) -> List a -> Bool -- and-reduction
 allList fn Empty = True
 allList fn (Entry x xs) = fn x && allList fn xs
 
+appendList :: List a -> List a -> List a
+appendList = merge
+
 subset :: Eq a => List a -> List a -> Bool
 subset xs ys = allList (`elem` ys) xs
 
------------- meta ------------
+------------ merge ------------
 
 class Merge a where
   merge :: a -> a -> a
   infixr 0 `merge`
 instance (Merge Picture) where merge = (CodeWorld.&)
-instance (Merge (List Coords)) where
+instance (Merge (List a)) where
   merge Empty cs' = cs'
   merge (Entry c cs) cs' = Entry c (merge cs cs')
 
