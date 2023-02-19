@@ -14,33 +14,21 @@ mapList :: (a -> b) -> List a -> List b
 mapList _ Empty = Empty
 mapList f (Entry c cs) = Entry (f c) (mapList f cs)
 
-combine :: List Picture -> Picture
-combine Empty = blank
-combine (Entry p ps) = p & combine ps
-
 reduce :: (b -> b -> b) -> (a -> b) -> List a -> b -- it's wonky
 reduce _ isOk (Entry x Empty) = isOk x
 reduce select isOk (Entry x xs) = select (isOk x) (reduce select isOk xs)
 
--- anyList :: (a -> Bool) -> List a -> Bool
--- anyList _ Empty = False
--- anyList isOk (Entry x xs) = isOk x || anyList isOk xs
-
--- allList :: (a -> Bool) -> List a -> Bool
--- allList _ Empty = True
--- allList isOk (Entry x xs) = isOk x && allList isOk xs
-
-allList = reduce (&&)
-anyList = reduce (||)
+combine :: Merge a => List a -> a
+combine = reduce merge id
 
 elem :: Eq a => a -> List a -> Bool
-elem c = anyList (== c)
+elem c = reduce (||) (== c)
+
+subset :: Eq a => List a -> List a -> Bool
+subset xs ys = reduce (&&) (`elem` ys) xs
 
 appendList :: List a -> List a -> List a
 appendList = merge
-
-subset :: Eq a => List a -> List a -> Bool
-subset xs ys = allList (`elem` ys) xs
 
 ------------ merge ------------
 
