@@ -18,19 +18,23 @@ combine :: List Picture -> Picture
 combine Empty = blank
 combine (Entry p ps) = p & combine ps
 
--- elem :: Eq a => a -> List a -> Bool
--- elem _ Empty = False
--- elem c (Entry x xs) = (x == c) || c `elem` xs
+reduce :: (b -> b -> b) -> (a -> b) -> List a -> b -- it's wonky
+reduce _ isOk (Entry x Empty) = isOk x
+reduce select isOk (Entry x xs) = select (isOk x) (reduce select isOk xs)
 
-is :: (a -> a -> Bool) -> a -> List a -> Bool
-is _ _ Empty = False
-is fn c (Entry x xs) = fn c x || is fn c xs
+-- anyList :: (a -> Bool) -> List a -> Bool
+-- anyList _ Empty = False
+-- anyList isOk (Entry x xs) = isOk x || anyList isOk xs
+
+-- allList :: (a -> Bool) -> List a -> Bool
+-- allList _ Empty = True
+-- allList isOk (Entry x xs) = isOk x && allList isOk xs
+
+allList = reduce (&&)
+anyList = reduce (||)
+
 elem :: Eq a => a -> List a -> Bool
-elem = is (==)
-
-allList :: (a -> Bool) -> List a -> Bool -- and-reduction
-allList fn Empty = True
-allList fn (Entry x xs) = fn x && allList fn xs
+elem c = anyList (== c)
 
 appendList :: List a -> List a -> List a
 appendList = merge
@@ -128,6 +132,8 @@ findTiles _ Empty = Empty
 findTiles t (Entry c cs)
   | maze c == t = Entry c (findTiles t cs)
   | otherwise = findTiles t cs
+
+hysm x y = ()
 
 ------------ event handling ------------
 
