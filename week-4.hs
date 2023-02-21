@@ -39,26 +39,15 @@ nth :: List a -> Integer -> a
 nth (Entry c _) 0 = c
 nth (Entry _ cs) n = nth cs (n - 1)
 
-{- 
-isGraphClosed :: Eq a => a -> (a -> List a) -> (a -> Bool) -> Bool
+isGraphClosed :: forall a. Eq a => a -> (a -> List a) -> (a -> Bool) -> Bool
+isGraphClosed initial adjacent isOk = go Empty (Entry initial (adjacent initial))
+ where
+  go :: List a -> List a -> Bool
+  go _ Empty = True
+  go seen (Entry x xs)
+    | x `elem` seen = go seen xs -- skip x
+    | otherwise = isOk x && go (Entry x seen) xs
 
-so that in a call `isGraphClosed initial adjacent isOk`, where the parameters
-are `initial`, an initial node, `adjacent`, a function that for every node lists
-all walkable adjacent nodes and `isOk`, which checks if the node is ok to have
-in the graph, the function returns True if all reachable nodes are “ok” and
-False otherwise.
-
-Note that the graph described by adjacent can have circles, and you do not want
-your program to keep running in circles. So you will have to remember what nodes
-you have already visited.
-
-The algorithm follows quite naturally from handling the various cases in a local
-helper function go that takes two arguments, namely a list of seen nodes and a
-list of nodes that need to be handled. If the latter list is empty, you are
-done. If it is not empty, look at the first entry. Ignore it if you have seen it
-before. Otherwise, if it is not ok, you are also done. Otherwise, add its
-adjacent elements to the list of nodes to look at. 
--}
 
 ------------ merge ------------
 
@@ -110,9 +99,9 @@ maze1 (C x y)
   | x == 3 && y <= 0 = Storage
   | x >= -2 && y == 0 = Box
   | otherwise = Ground
-
+maze=maze1
 noBoxMaze :: Coords -> Tile
-noBoxMaze c = case maze c of
+noBoxMaze c = case maze c of  ------------------------------------------------- !
   Box -> Ground
   other -> other
 
@@ -142,7 +131,7 @@ coordsList :: List Coords
 coordsList = scanMaze $ \c -> Entry c Empty
 
 findTiles :: Tile -> List Coords -> List Coords
-findTiles tile = filterList (\c -> maze c == tile)  --------------------------- !
+findTiles tile = filterList (\c -> maze c == tile) --------------------------- !
 
 ------------ event handling ------------
 
@@ -284,25 +273,26 @@ main = runActivity (resetable $ withUndo $ withStartScreen sokoban)
 ------------------------------------ TRASH ------------------------------------
 
 data Maze = Maze Coords (Coords -> Tile)
-
+{- ORMOLU_DISABLE -}
 mazes :: List Maze
 mazes =
-  Entry (Maze (C 0 1) maze1) $
-    Entry (Maze (C (-4) 3) maze3) $
-      Entry (Maze (C 1 (-3)) maze4) $
-        Entry (Maze (C 0 1) maze5) $
-          Entry (Maze (C (-2) 4) maze6) $
-            Entry (Maze (C (-3) 3) maze7) $
-              Entry (Maze (C 0 0) maze8) $
-                Entry (Maze (C 1 1) maze9) $
-                  Empty
+  Entry (Maze (C 0 1) maze1)    $
+  Entry (Maze (C (-4) 3) maze3) $
+  Entry (Maze (C 1 (-3)) maze4) $
+  Entry (Maze (C 0 1) maze5)    $
+  Entry (Maze (C (-2) 4) maze6) $
+  Entry (Maze (C (-3) 3) maze7) $
+  Entry (Maze (C 0 0) maze8)    $
+  Entry (Maze (C 1 1) maze9)    $
+  Empty
 
 extraMazes :: List Maze
 extraMazes =
-  Entry (Maze (C 1 (-3)) maze4') $
-    Entry (Maze (C 1 (-3)) maze4'') $
-      Entry (Maze (C 1 1) maze9') $
-        mazes
+  Entry (Maze (C 1 (-3)) maze4')  $
+  Entry (Maze (C 1 (-3)) maze4'') $
+  Entry (Maze (C 1 1) maze9')     $
+  mazes
+{- ORMOLU_ENABLE -}
 
 maze4 :: Coords -> Tile
 maze4 (C x y)
