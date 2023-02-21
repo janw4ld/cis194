@@ -4,7 +4,7 @@ import CodeWorld
 import Prelude hiding (elem)
 
 import Data.Map.Lazy (Map, fromList, member, (!))
-import Data.Text (Text)
+import Data.Text (Text, filter)
 
 ------------ lists ------------
 
@@ -24,26 +24,21 @@ elem c = reduce (||) (== c)
 subset :: Eq a => List a -> List a -> Bool
 subset xs ys = reduce (&&) (`elem` ys) xs
 
-{------------------------------------TODO---------------------------------------
+listLength :: List a -> Integer
+listLength = reduce (+) (const 1)
 
--- elemList :: Eq a => a -> List a -> Bool
--- appendList :: List a -> List a -> List a
--- listLength :: List a -> Integer
--- filterList :: (a -> Bool) -> List a -> List a
--- nth :: List a -> Integer -> a
+filterList :: (a -> Bool) -> List a -> List a
+filterList _ Empty = Empty
+filterList isOk (Entry c cs)
+  | isOk c = Entry c (filterList isOk cs)
+  | otherwise = filterList isOk cs
 
-* elemList x xs is True if and only if at least one entry in xs equals to x.
-* appendList xs ys should be the list containing the entries of xs followed by
-  those of ys, in that order.
-* listLength xs should be the number of entries in xs.
-* filterList p xs should be the list containing those entries x of xs for which
-  p x is true.
-* nths xs n extracts the nth entry of the list (start counting with 1). If n is
-  too large, you may abort the program (by writing error "list too short", which
-  is an expression that can be used at any type). This is not good style, but
-  shall do for now.
+nth :: List a -> Integer -> a
+{- nth [1,2,3,4] 0 -> 1
+   nth [1,2,3,4] 2 -> 3 -}
+nth (Entry c _) 0 = c
+nth (Entry _ cs) n = nth cs (n - 1)
 
--------------------------------------------------------------------------------}
 ------------ merge ------------
 
 class Merge a where
