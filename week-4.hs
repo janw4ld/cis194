@@ -39,6 +39,27 @@ nth :: List a -> Integer -> a
 nth (Entry c _) 0 = c
 nth (Entry _ cs) n = nth cs (n - 1)
 
+{- 
+isGraphClosed :: Eq a => a -> (a -> List a) -> (a -> Bool) -> Bool
+
+so that in a call `isGraphClosed initial adjacent isOk`, where the parameters
+are `initial`, an initial node, `adjacent`, a function that for every node lists
+all walkable adjacent nodes and `isOk`, which checks if the node is ok to have
+in the graph, the function returns True if all reachable nodes are “ok” and
+False otherwise.
+
+Note that the graph described by adjacent can have circles, and you do not want
+your program to keep running in circles. So you will have to remember what nodes
+you have already visited.
+
+The algorithm follows quite naturally from handling the various cases in a local
+helper function go that takes two arguments, namely a list of seen nodes and a
+list of nodes that need to be handled. If the latter list is empty, you are
+done. If it is not empty, look at the first entry. Ignore it if you have seen it
+before. Otherwise, if it is not ok, you are also done. Otherwise, add its
+adjacent elements to the list of nodes to look at. 
+-}
+
 ------------ merge ------------
 
 class Merge a where
@@ -109,7 +130,7 @@ scanMaze fn =
 
 data State = S Direction Coords (List Coords) deriving (Eq)
 initialState :: State
-initialState = S R (C (-3) 3) initialBoxList --------------- !
+initialState = S R (C (-3) 3) initialBoxList ---------------------------------- !
 
 initialBoxList :: List Coords
 initialBoxList = findTiles Box coordsList
@@ -121,10 +142,7 @@ coordsList :: List Coords
 coordsList = scanMaze $ \c -> Entry c Empty
 
 findTiles :: Tile -> List Coords -> List Coords
-findTiles _ Empty = Empty
-findTiles t (Entry c cs)
-  | maze c == t = Entry c (findTiles t cs)
-  | otherwise = findTiles t cs
+findTiles tile = filterList (\c -> maze c == tile)  --------------------------- !
 
 ------------ event handling ------------
 
