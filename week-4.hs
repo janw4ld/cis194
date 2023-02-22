@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- {-# OPTIONS_GHC -Wall -Wimplicit-prelude #-}
+
 import CodeWorld
 import Prelude hiding (elem)
 
-import Data.Map.Lazy (Map, elems, fromList, member, (!))
+import Data.Map.Lazy (Map, fromList, member, (!))
 import Data.Text (Text)
 
 ------------ lists ------------
@@ -14,24 +16,28 @@ mapList :: (a -> b) -> List a -> List b
 mapList _ Empty = Empty
 mapList f (Entry c cs) = Entry (f c) (mapList f cs)
 
+{-
 realReduce :: (b -> a -> b) -> b -> List a -> b
 realReduce op acc (Entry x Empty) = op acc x
 realReduce op acc (Entry x xs) = realReduce op (op acc x) xs
 
 realElem :: Eq a => a -> List a -> Bool
 realElem c = realReduce (\acc el -> acc || (el == c)) False
+ -}
 
-reduce :: (b -> b -> b) -> (a -> b) -> List a -> b -- it's wonky
-reduce _ go (Entry x Empty) = go x
-reduce select go (Entry x xs) = select (go x) (reduce select go xs)
+reduce' :: (b -> b -> b) -> (a -> b) -> List a -> b -- it's wonky
+reduce' _ _ Empty = undefined ---TODO use Maybe
+reduce' _ go (Entry x Empty) = go x
+reduce' select go (Entry x xs) = select (go x) (reduce' select go xs)
 
 elem :: Eq a => a -> List a -> Bool
-elem c = reduce (||) (== c)
+elem c = reduce' (||) (== c)
+
 subset :: Eq a => List a -> List a -> Bool
-subset xs ys = reduce (&&) (`elem` ys) xs
+subset xs ys = reduce' (&&) (`elem` ys) xs
 
 listLength :: List a -> Integer
-listLength = reduce (+) (const 1)
+listLength = reduce' (+) (const 1)
 
 filterList :: (a -> Bool) -> List a -> List a
 filterList _ Empty = Empty
@@ -47,7 +53,7 @@ nth (Entry c _) 0 = c
 nth (Entry _ cs) n = nth cs (n - 1)
 
 ------------- graphs -----------
-
+{-
 isGraphClosed :: forall a. Eq a => a -> (a -> List a) -> (a -> Bool) -> Bool
 isGraphClosed initial adjacent isOk = go Empty (Entry initial (adjacent initial))
  where
@@ -73,7 +79,7 @@ isClosed (Maze initial maze) =
       mapList (`adjacentCoords` c) dirList
   okStep = (/= Blank) . maze
   okStart = t == Storage || t == Ground where t = maze initial
-
+ -}
 ------------ merge ------------
 
 class Merge a where
@@ -125,7 +131,7 @@ maze1 (C x y)
   | x >= -2 && y == 0 = Box
   | otherwise = Ground
 noBoxMaze :: Maze -> Coords -> Tile
-noBoxMaze (Maze _ maze) c = case maze c of ------------------------------------------------- !
+noBoxMaze (Maze _ maze) c = case maze c of
   Box -> Ground
   other -> other
 
@@ -144,7 +150,7 @@ scanMaze fn =
 data State = S Direction Coords (List Coords) Integer deriving (Eq)
 loadLevel :: Integer -> State
 loadLevel n =
-  let Maze c m = level; level = nth mazes n
+  let Maze c _ = level; level = nth mazes n
    in S R c (initialBoxList level) n
 
 initialBoxList :: Maze -> List Coords
@@ -157,7 +163,7 @@ coordsList :: List Coords
 coordsList = scanMaze $ \c -> Entry c Empty
 
 findTiles :: Tile -> Maze -> List Coords -> List Coords
-findTiles tile (Maze _ maze) = filterList (\c -> maze c == tile) --------------------------- !
+findTiles tile (Maze _ maze) = filterList (\c -> maze c == tile)
 
 ------------ event handling ------------
 
@@ -203,15 +209,14 @@ fromTile tile = case tile of
   Box -> colored brown (solidRectangle 1 1)
   _ -> blank
 
-atCoords :: Picture -> Coords -> Picture
-(@>) = atCoords
-atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
+(@>) :: Picture -> Coords -> Picture
+(@>) pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 
 drawMaze :: Maze -> Picture
 drawMaze maze = scanMaze $ \c -> fromTile (noBoxMaze maze c) @> c
 
 drawBoxes :: List Coords -> Picture
-drawBoxes cs = reduce merge id $ mapList (fromTile Box @>) cs
+drawBoxes cs = reduce' merge id $ mapList (fromTile Box @>) cs
 
 player :: Picture
 player = colored red (styledLettering Bold Monospace ">")
@@ -241,10 +246,7 @@ drawPage a b =
 ------------ the complete activity ------------
 
 sokoban :: Activity State
-sokoban = Activity s handleEvent drawState
- where
-  s = loadLevel 0
-  m = nth mazes 0
+sokoban = Activity (loadLevel 0) handleEvent drawState
 
 ------------ the general activity type ------------
 
@@ -412,6 +414,7 @@ maze9 (C x y)
   | x == 1 && y == -2 = Box
   | x == 2 && y == -3 = Box
   | otherwise = Ground
+
 
 maze4'' :: Coords -> Tile
 maze4'' (C 1 (-3)) = Box
