@@ -14,13 +14,19 @@ mapList :: (a -> b) -> List a -> List b
 mapList _ Empty = Empty
 mapList f (Entry c cs) = Entry (f c) (mapList f cs)
 
+realReduce :: (b -> a -> b) -> b -> List a -> b
+realReduce op acc (Entry x Empty) = op acc x
+realReduce op acc (Entry x xs) = realReduce op (op acc x) xs
+
+realElem :: Eq a => a -> List a -> Bool
+realElem c = realReduce (\acc el -> acc || (el == c)) False
+
 reduce :: (b -> b -> b) -> (a -> b) -> List a -> b -- it's wonky
 reduce _ go (Entry x Empty) = go x
 reduce select go (Entry x xs) = select (go x) (reduce select go xs)
 
 elem :: Eq a => a -> List a -> Bool
 elem c = reduce (||) (== c)
-
 subset :: Eq a => List a -> List a -> Bool
 subset xs ys = reduce (&&) (`elem` ys) xs
 
@@ -313,10 +319,10 @@ mazes =
   Entry (Maze (C 1 1) maze9)    $
   Entry (Maze (C (-2) 4) maze6) $
   Entry (Maze (C (-4) 3) maze3) $
-  Entry (Maze (C 0 0) maze8)    $
   Entry (Maze (C 1 (-3)) maze4) $
   Entry (Maze (C (-3) 3) maze7) $
   Entry (Maze (C 0 1) maze5)    $
+  Entry (Maze (C 0 0) maze8)    $
   Empty
 
 extraMazes :: List Maze
