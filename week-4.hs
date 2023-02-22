@@ -4,7 +4,7 @@ import CodeWorld
 import Prelude hiding (elem)
 
 import Data.Map.Lazy (Map, elems, fromList, member, (!))
-import Data.Text (Text, filter)
+import Data.Text (Text)
 
 ------------ lists ------------
 
@@ -15,8 +15,8 @@ mapList _ Empty = Empty
 mapList f (Entry c cs) = Entry (f c) (mapList f cs)
 
 reduce :: (b -> b -> b) -> (a -> b) -> List a -> b -- it's wonky
-reduce _ isOk (Entry x Empty) = isOk x
-reduce select isOk (Entry x xs) = select (isOk x) (reduce select isOk xs)
+reduce _ go (Entry x Empty) = go x
+reduce select go (Entry x xs) = select (go x) (reduce select go xs)
 
 elem :: Eq a => a -> List a -> Bool
 elem c = reduce (||) (== c)
@@ -36,6 +36,7 @@ filterList isOk (Entry c cs)
 nth :: List a -> Integer -> a
 {- nth [1,2,3,4] 0 -> 1
    nth [1,2,3,4] 2 -> 3 -}
+nth Empty c = error $ "out of bounds, input index is off by " ++ show (c + 1)
 nth (Entry c _) 0 = c
 nth (Entry _ cs) n = nth cs (n - 1)
 
@@ -66,7 +67,6 @@ isClosed (Maze initial maze) =
       mapList (`adjacentCoords` c) dirList
   okStep = (/= Blank) . maze
   okStart = t == Storage || t == Ground where t = maze initial
-
 
 ------------ merge ------------
 
@@ -118,16 +118,15 @@ maze1 (C x y)
   | x == 3 && y <= 0 = Storage
   | x >= -2 && y == 0 = Box
   | otherwise = Ground
-maze = maze1
-noBoxMaze :: Coords -> Tile
-noBoxMaze c = case maze c of ------------------------------------------------- !
+noBoxMaze :: Maze -> Coords -> Tile
+noBoxMaze (Maze _ maze) c = case maze c of ------------------------------------------------- !
   Box -> Ground
   other -> other
 
-mazeWithBoxes :: List Coords -> Coords -> Tile
-mazeWithBoxes cs c
+mazeWithBoxes :: Maze -> List Coords -> Coords -> Tile
+mazeWithBoxes maze cs c
   | c `elem` cs = Box
-  | otherwise = noBoxMaze c
+  | otherwise = noBoxMaze maze c
 
 scanMaze :: Merge a => (Coords -> a) -> a
 scanMaze fn =
@@ -136,21 +135,23 @@ scanMaze fn =
 
 ------------ state ------------
 
-data State = S Direction Coords (List Coords) deriving (Eq)
-initialState :: State
-initialState = S R (C (-3) 3) initialBoxList ---------------------------------- !
+data State = S Direction Coords (List Coords) Integer deriving (Eq)
+loadLevel :: Integer -> State
+loadLevel n =
+  let Maze c m = level; level = nth mazes n
+   in S R c (initialBoxList level) n
 
-initialBoxList :: List Coords
-initialBoxList = findTiles Box coordsList
+initialBoxList :: Maze -> List Coords
+initialBoxList maze = findTiles Box maze coordsList
 
-storageList :: List Coords
-storageList = findTiles Storage coordsList
+storageList :: Maze -> List Coords
+storageList maze = findTiles Storage maze coordsList
 
 coordsList :: List Coords
 coordsList = scanMaze $ \c -> Entry c Empty
 
-findTiles :: Tile -> List Coords -> List Coords
-findTiles tile = filterList (\c -> maze c == tile) --------------------------- !
+findTiles :: Tile -> Maze -> List Coords -> List Coords
+findTiles tile (Maze _ maze) = filterList (\c -> maze c == tile) --------------------------- !
 
 ------------ event handling ------------
 
@@ -158,9 +159,13 @@ moveFromTo :: Eq a => a -> a -> a -> a
 moveFromTo c0 c1 c = if c0 == c then c1 else c
 
 handleEvent :: Event -> State -> State
-handleEvent (KeyPress key) (S _ startC boxList)
-  | key `member` dirMap && not (boxList `subset` storageList) =
-      S d finalC newBoxList
+handleEvent (KeyPress key) (S _ startC boxList level)
+  | key `member` dirMap && not (boxList `subset` storageList maze) =
+      S d finalC newBoxList level
+  | boxList `subset` storageList maze
+      && key == " "
+      && level + 1 < listLength mazes =
+      loadLevel $ level + 1
  where
   d = dirMap ! key
 
@@ -168,13 +173,15 @@ handleEvent (KeyPress key) (S _ startC boxList)
   targetC = adjacentCoords d startC
 
   canMove = isOk targetTile || (targetTile == Box && isOk adjTile)
-  targetTile = mazeWithBoxes boxList targetC
-  adjTile = mazeWithBoxes boxList (adjacentCoords d targetC)
+  targetTile = mazeWithBoxes maze boxList targetC
+  adjTile = mazeWithBoxes maze boxList (adjacentCoords d targetC)
 
   isOk tile = case tile of
     Ground -> True
     Storage -> True
     _ -> False
+
+  maze = nth mazes level
 
   newBoxList = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxList
 handleEvent _ s = s
@@ -194,8 +201,8 @@ atCoords :: Picture -> Coords -> Picture
 (@>) = atCoords
 atCoords pic (C x y) = translated (fromIntegral x) (fromIntegral y) pic
 
-drawMaze :: Picture
-drawMaze = scanMaze $ \c -> fromTile (noBoxMaze c) @> c
+drawMaze :: Maze -> Picture
+drawMaze maze = scanMaze $ \c -> fromTile (noBoxMaze maze c) @> c
 
 drawBoxes :: List Coords -> Picture
 drawBoxes cs = reduce merge id $ mapList (fromTile Box @>) cs
@@ -204,13 +211,14 @@ player :: Picture
 player = colored red (styledLettering Bold Monospace ">")
 
 drawState :: State -> Picture
-drawState (S d c boxList)
-  | boxList `subset` storageList =
-      scaled 3 3 (lettering "You won!")
-        & lettering "press esc to restart"
-        @> C 0 (-3)
-  | otherwise = drawPlayer & drawBoxes boxList & drawMaze
+drawState (S d c boxList level)
+  | boxList `subset` storageList maze =
+      if level + 1 >= listLength mazes
+        then drawPage "You won!" "press esc to restart"
+        else drawPage "Level completed!" "press space to continue"
+  | otherwise = drawPlayer & drawBoxes boxList & drawMaze maze
  where
+  maze = nth mazes level
   drawPlayer = rotated theta player @> c
   theta = case d of
     R -> 0
@@ -218,10 +226,19 @@ drawState (S d c boxList)
     L -> pi
     D -> 3 * pi / 2
 
+drawPage :: Text -> Text -> Picture
+drawPage a b =
+  scaled 3 3 (lettering a)
+    & lettering b
+    @> C 0 (-3)
+
 ------------ the complete activity ------------
 
 sokoban :: Activity State
-sokoban = Activity initialState handleEvent drawState
+sokoban = Activity s handleEvent drawState
+ where
+  s = loadLevel 0
+  m = nth mazes 0
 
 ------------ the general activity type ------------
 
@@ -266,10 +283,7 @@ withUndo (Activity state0 handle draw) =
 ------------ start screen ------------
 
 startScreen :: Picture
-startScreen =
-  scaled 3 3 (lettering "Sokoban!")
-    & lettering "press space to start"
-    @> C 0 (-3)
+startScreen = drawPage "Sokoban!" "press space to start"
 
 data SSState world = StartScreen | Running world deriving (Eq)
 
@@ -295,14 +309,14 @@ data Maze = Maze Coords (Coords -> Tile)
 {- ORMOLU_DISABLE -}
 mazes :: List Maze
 mazes =
-  Entry (Maze (C 0 1) maze1)    $
-  Entry (Maze (C (-4) 3) maze3) $
-  Entry (Maze (C 1 (-3)) maze4) $
-  Entry (Maze (C 0 1) maze5)    $
-  Entry (Maze (C (-2) 4) maze6) $
-  Entry (Maze (C (-3) 3) maze7) $
-  Entry (Maze (C 0 0) maze8)    $
-  Entry (Maze (C 1 1) maze9)
+  Entry (Maze (C (-3) 3) maze1) $
+  -- Entry (Maze (C (-4) 3) maze3) $
+  -- Entry (Maze (C 1 (-3)) maze4) $
+  -- Entry (Maze (C 0 1) maze5)    $
+  -- Entry (Maze (C (-2) 4) maze6) $
+  -- Entry (Maze (C (-3) 3) maze7) $
+  -- Entry (Maze (C 0 0) maze8)    $
+  -- Entry (Maze (C 1 1) maze9)
   Empty
 
 extraMazes :: List Maze
