@@ -3,7 +3,7 @@
 import CodeWorld
 import Prelude hiding (elem)
 
-import Data.Map.Lazy (Map, fromList, member, (!))
+import Data.Map.Lazy (Map, elems, fromList, member, (!))
 import Data.Text (Text, filter)
 
 ------------ lists ------------
@@ -39,6 +39,8 @@ nth :: List a -> Integer -> a
 nth (Entry c _) 0 = c
 nth (Entry _ cs) n = nth cs (n - 1)
 
+------------- graphs -----------
+
 isGraphClosed :: forall a. Eq a => a -> (a -> List a) -> (a -> Bool) -> Bool
 isGraphClosed initial adjacent isOk = go Empty (Entry initial (adjacent initial))
  where
@@ -47,6 +49,23 @@ isGraphClosed initial adjacent isOk = go Empty (Entry initial (adjacent initial)
   go seen (Entry x xs)
     | x `elem` seen = go seen xs -- skip x
     | otherwise = isOk x && go (Entry x seen) xs
+
+dirList :: List Direction
+dirList = toList $ elems dirMap
+ where
+  toList [] = Empty
+  toList (x : xs) = Entry x (toList xs)
+
+isClosed :: Maze -> Bool
+isClosed (Maze initial maze) =
+  okStart
+    && isGraphClosed initial adjacent okStep
+ where
+  adjacent c =
+    filterList ((/= Wall) . maze) $
+      mapList (`adjacentCoords` c) dirList
+  okStep = (/= Blank) . maze
+  okStart = t == Storage || t == Ground where t = maze initial
 
 
 ------------ merge ------------
@@ -99,9 +118,9 @@ maze1 (C x y)
   | x == 3 && y <= 0 = Storage
   | x >= -2 && y == 0 = Box
   | otherwise = Ground
-maze=maze1
+maze = maze1
 noBoxMaze :: Coords -> Tile
-noBoxMaze c = case maze c of  ------------------------------------------------- !
+noBoxMaze c = case maze c of ------------------------------------------------- !
   Box -> Ground
   other -> other
 
@@ -283,14 +302,14 @@ mazes =
   Entry (Maze (C (-2) 4) maze6) $
   Entry (Maze (C (-3) 3) maze7) $
   Entry (Maze (C 0 0) maze8)    $
-  Entry (Maze (C 1 1) maze9)    $
+  Entry (Maze (C 1 1) maze9)
   Empty
 
 extraMazes :: List Maze
 extraMazes =
   Entry (Maze (C 1 (-3)) maze4')  $
   Entry (Maze (C 1 (-3)) maze4'') $
-  Entry (Maze (C 1 1) maze9')     $
+  Entry (Maze (C 1 1) maze9')
   mazes
 {- ORMOLU_ENABLE -}
 
