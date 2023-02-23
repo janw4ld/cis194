@@ -1,5 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# HLINT ignore "Use camelCase" #-}
+{-# HLINT ignore "Use null" #-}
+{-# LANGUAGE ParallelListComp #-}
 {-# OPTIONS_GHC -Wall -Wimplicit-prelude #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
+import Data.Char
+import Data.Foldable
+import Data.Function (on)
+import Data.List
 import Prelude
 
 ---------------------------------- Exercise 1 ----------------------------------
@@ -12,7 +21,8 @@ ex_halveEvens =
   ]
 
 halveEvens :: [Integer] -> [Integer]
-halveEvens = undefined
+halveEvens [] = []
+halveEvens xs = map (`div` 2) (filter even xs)
 
 ex_safeString :: [Bool]
 ex_safeString =
@@ -23,7 +33,10 @@ ex_safeString =
   ]
 
 safeString :: String -> String
-safeString = undefined
+safeString = map $ \c ->
+  if isAscii c && isPrint c
+    then c
+    else '_'
 
 ex_holes :: [Bool]
 ex_holes =
@@ -31,8 +44,21 @@ ex_holes =
   , holes "Hello" == ["ello", "Hllo", "Helo", "Helo", "Hell"]
   ]
 
-holes :: [a] -> [[a]]
-holes = undefined
+holes :: forall a. [a] -> [[a]]
+holes xs =
+  map
+    ( \n ->
+        if 0 <= n && n < m
+          then take n xs ++ drop (n + 1) xs
+          else []
+    )
+    [0 .. m - 1] ---TODO: find scanner-ish functions
+ where
+  m = length xs
+
+-- holeAt idx xs = lft ++ drop 1 rgt
+--  where
+--   (lft, (_ : rgt)) = splitAt idx xs ---- ! non-exhaustive
 
 ex_longestText :: [Bool]
 ex_longestText =
@@ -43,7 +69,8 @@ ex_longestText =
   ]
 
 longestText :: Show a => [a] -> a
-longestText = undefined
+longestText [] = error "Input can't be empty"
+longestText xs = maximumBy (compare `on` length . show) xs --- *** return to this sorcery
 
 ex_adjacents :: [Bool]
 ex_adjacents =
@@ -52,8 +79,12 @@ ex_adjacents =
   , adjacents "Hello" == [('H', 'e'), ('e', 'l'), ('l', 'l'), ('l', 'o')]
   ]
 
-adjacents :: [a] -> [(a, a)]
-adjacents = undefined
+adjacents :: forall a. [a] -> [(a, a)]
+adjacents xs =
+  [ (i, j) -- I'm doing really cursed stuff at this point, but the real zip is weird
+  | i <- xs
+  | j <- drop 1 xs
+  ]
 
 ex_commas :: [Bool]
 ex_commas =
@@ -65,8 +96,9 @@ ex_commas =
   ]
 
 commas :: [String] -> String
-commas = undefined
+commas xs = undefined -- transpose [xs, replicate (length xs) ", "]
 
+ex_sumNumbers :: [Bool]
 ex_sumNumbers =
   [ sumNumbers "" == 0
   , sumNumbers "Hello world!" == 0
