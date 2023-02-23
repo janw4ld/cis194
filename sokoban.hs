@@ -10,28 +10,18 @@ import Data.Text (Text)
 
 ------------ lists ------------
 
--- data [a] = [] | Entry a ([a]) deriving (Eq)
-
--- mapList :: (a -> b) -> [a] -> [b]
--- mapList _ [] = []
--- mapList f (c : cs) = f c : mapList f cs
-
 reduce' :: (b -> b -> b) -> (a -> b) -> [a] -> Maybe b -- it's wonky
 reduce' _ _ [] = Nothing
--- reduce' _ go [x] = Just $ go x
 reduce' select go (x : xs) = Just $ select' (go x) (reduce' select go xs)
  where
   select' a Nothing = a
   select' a (Just b) = select a b
 
-fromMightNot :: (a -> Maybe Bool) -> a -> Bool
-fromMightNot fn x = fromMaybe False $ fn x
-
 elem :: Eq a => a -> [a] -> Bool
-elem c = fromMightNot $ reduce' (||) (== c)
+elem c cs = fromMaybe False $ reduce' (||) (== c) cs
 
 subset :: Eq a => [a] -> [a] -> Bool
-subset xs ys = fromMightNot (reduce' (&&) (`elem` ys)) xs
+subset xs ys = fromMaybe False $ reduce' (&&) (`elem` ys) xs
 
 listLength :: [a] -> Integer
 listLength xs = fromMaybe 0 (reduce' (+) (const 1) xs)
@@ -49,34 +39,6 @@ nth [] c = error $ "out of bounds, input index is off by " ++ show (c + 1)
 nth (c : _) 0 = c
 nth (_ : cs) n = nth cs (n - 1)
 
-------------- graphs -----------
-{-
-isGraphClosed :: forall a. Eq a => a -> (a -> [a]) -> (a -> Bool) -> Bool
-isGraphClosed initial adjacent isOk = go [] (Entry initial (adjacent initial))
- where
-  go :: [a] -> [a] -> Bool
-  go _ [] = True
-  go seen (Entry x xs)
-    | x `elem` seen = go seen xs -- skip x
-    | otherwise = isOk x && go (Entry x seen) xs
-
-dirList :: [Direction]
-dirList = toList $ elems dirMap
- where
-  toList [] = []
-  toList (x : xs) = Entry x (to[xs])
-
-isClosed :: Maze -> Bool
-isClosed (Maze initial maze) =
-  okStart
-    && isGraphClosed initial adjacent okStep
- where
-  adjacent c =
-    filterList ((/= Wall) . maze) $
-      mapList (`adjacentCoords` c) dirList
-  okStep = (/= Blank) . maze
-  okStart = t == Storage || t == Ground where t = maze initial
- -}
 ------------ merge ------------
 
 class Merge a where
@@ -309,7 +271,7 @@ withStartScreen (Activity initial handler draw) =
 main :: IO ()
 main = runActivity (resetable $ withUndo $ withStartScreen sokoban)
 
------------------------------------- TRASH ------------------------------------
+------------------------------------ levels ------------------------------------
 
 data Maze = Maze Coords (Coords -> Tile)
 
@@ -324,15 +286,7 @@ mazes =
   , Maze (C 0 1) maze5
   , Maze (C 0 0) maze8
   ]
-{- 
-extraMazes :: [Maze]
-extraMazes =
-  mazes
-    ++ [ Maze (C 1 (-3)) maze4'
-       , Maze (C 1 (-3)) maze4''
-       , Maze (C 1 1) maze9'
-       ]
- -}
+
 maze4 :: Coords -> Tile
 maze4 (C x y)
   | abs x > 4 || abs y > 4 = Blank
@@ -412,20 +366,7 @@ maze9 (C x y)
   | x == 1 && y == -2 = Box
   | x == 2 && y == -3 = Box
   | otherwise = Ground
-{- 
-maze4'' :: Coords -> Tile
-maze4'' (C 1 (-3)) = Box
-maze4'' c = maze4 c
 
-maze4' :: Coords -> Tile
-maze4' (C 0 1) = Blank
-maze4' c = maze4 c
-
-maze9' :: Coords -> Tile
-maze9' (C 3 0) = Box
-maze9' (C 4 0) = Box
-maze9' c = maze9 c
- -}
 maze3 :: Coords -> Tile -- bro wtf?
 maze3 (C (-5) (-5)) = Wall
 maze3 (C (-5) (-4)) = Wall
