@@ -1,73 +1,70 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 {-# OPTIONS_GHC -Wall -Wimplicit-prelude #-}
 
 import CodeWorld
 import Prelude hiding (elem)
 
 import Data.Map.Lazy (Map, fromList, member, (!))
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
 ------------ lists ------------
 
-data List a = Empty | Entry a (List a) deriving (Eq)
+-- data [a] = [] | Entry a ([a]) deriving (Eq)
 
-mapList :: (a -> b) -> List a -> List b
-mapList _ Empty = Empty
-mapList f (Entry c cs) = Entry (f c) (mapList f cs)
+-- mapList :: (a -> b) -> [a] -> [b]
+-- mapList _ [] = []
+-- mapList f (c : cs) = f c : mapList f cs
 
-{-
-realReduce :: (b -> a -> b) -> b -> List a -> b
-realReduce op acc (Entry x Empty) = op acc x
-realReduce op acc (Entry x xs) = realReduce op (op acc x) xs
+reduce' :: (b -> b -> b) -> (a -> b) -> [a] -> Maybe b -- it's wonky
+reduce' _ _ [] = Nothing
+-- reduce' _ go [x] = Just $ go x
+reduce' select go (x : xs) = Just $ select' (go x) (reduce' select go xs)
+ where
+  select' a Nothing = a
+  select' a (Just b) = select a b
 
-realElem :: Eq a => a -> List a -> Bool
-realElem c = realReduce (\acc el -> acc || (el == c)) False
- -}
+fromMightNot :: (a -> Maybe Bool) -> a -> Bool
+fromMightNot fn x = fromMaybe False $ fn x
 
-reduce' :: (b -> b -> b) -> (a -> b) -> List a -> b -- it's wonky
-reduce' _ _ Empty = undefined ---TODO use Maybe
-reduce' _ go (Entry x Empty) = go x
-reduce' select go (Entry x xs) = select (go x) (reduce' select go xs)
+elem :: Eq a => a -> [a] -> Bool
+elem c = fromMightNot $ reduce' (||) (== c)
 
-elem :: Eq a => a -> List a -> Bool
-elem c = reduce' (||) (== c)
+subset :: Eq a => [a] -> [a] -> Bool
+subset xs ys = fromMightNot (reduce' (&&) (`elem` ys)) xs
 
-subset :: Eq a => List a -> List a -> Bool
-subset xs ys = reduce' (&&) (`elem` ys) xs
+listLength :: [a] -> Integer
+listLength xs = fromMaybe 0 (reduce' (+) (const 1) xs)
 
-listLength :: List a -> Integer
-listLength = reduce' (+) (const 1)
-
-filterList :: (a -> Bool) -> List a -> List a
-filterList _ Empty = Empty
-filterList isOk (Entry c cs)
-  | isOk c = Entry c (filterList isOk cs)
+filterList :: (a -> Bool) -> [a] -> [a]
+filterList _ [] = []
+filterList isOk (c : cs)
+  | isOk c = c : filterList isOk cs
   | otherwise = filterList isOk cs
 
-nth :: List a -> Integer -> a
+nth :: [a] -> Integer -> a
 {- nth [1,2,3,4] 0 -> 1
    nth [1,2,3,4] 2 -> 3 -}
-nth Empty c = error $ "out of bounds, input index is off by " ++ show (c + 1)
-nth (Entry c _) 0 = c
-nth (Entry _ cs) n = nth cs (n - 1)
+nth [] c = error $ "out of bounds, input index is off by " ++ show (c + 1)
+nth (c : _) 0 = c
+nth (_ : cs) n = nth cs (n - 1)
 
 ------------- graphs -----------
 {-
-isGraphClosed :: forall a. Eq a => a -> (a -> List a) -> (a -> Bool) -> Bool
-isGraphClosed initial adjacent isOk = go Empty (Entry initial (adjacent initial))
+isGraphClosed :: forall a. Eq a => a -> (a -> [a]) -> (a -> Bool) -> Bool
+isGraphClosed initial adjacent isOk = go [] (Entry initial (adjacent initial))
  where
-  go :: List a -> List a -> Bool
-  go _ Empty = True
+  go :: [a] -> [a] -> Bool
+  go _ [] = True
   go seen (Entry x xs)
     | x `elem` seen = go seen xs -- skip x
     | otherwise = isOk x && go (Entry x seen) xs
 
-dirList :: List Direction
+dirList :: [Direction]
 dirList = toList $ elems dirMap
  where
-  toList [] = Empty
-  toList (x : xs) = Entry x (toList xs)
+  toList [] = []
+  toList (x : xs) = Entry x (to[xs])
 
 isClosed :: Maze -> Bool
 isClosed (Maze initial maze) =
@@ -86,9 +83,10 @@ class Merge a where
   merge :: a -> a -> a
   infixr 0 `merge`
 instance (Merge Picture) where merge = (CodeWorld.&)
-instance (Merge (List a)) where
-  merge Empty cs' = cs'
-  merge (Entry c cs) cs' = Entry c (merge cs cs')
+instance (Merge [a]) where merge = (++)
+
+-- merge [] cs' = cs'
+-- merge (c : cs) cs' = c : merge cs cs'
 
 applyRange :: forall a. Merge a => (Integer, Integer) -> (Integer -> a) -> a
 applyRange (start, end) fn
@@ -135,7 +133,7 @@ noBoxMaze (Maze _ maze) c = case maze c of
   Box -> Ground
   other -> other
 
-mazeWithBoxes :: Maze -> List Coords -> Coords -> Tile
+mazeWithBoxes :: Maze -> [Coords] -> Coords -> Tile
 mazeWithBoxes maze cs c
   | c `elem` cs = Box
   | otherwise = noBoxMaze maze c
@@ -147,22 +145,22 @@ scanMaze fn =
 
 ------------ state ------------
 
-data State = S Direction Coords (List Coords) Integer deriving (Eq)
+data State = S Direction Coords [Coords] Integer deriving (Eq)
 loadLevel :: Integer -> State
 loadLevel n =
   let Maze c _ = level; level = nth mazes n
    in S R c (initialBoxList level) n
 
-initialBoxList :: Maze -> List Coords
+initialBoxList :: Maze -> [Coords]
 initialBoxList maze = findTiles Box maze coordsList
 
-storageList :: Maze -> List Coords
+storageList :: Maze -> [Coords]
 storageList maze = findTiles Storage maze coordsList
 
-coordsList :: List Coords
-coordsList = scanMaze $ \c -> Entry c Empty
+coordsList :: [Coords]
+coordsList = scanMaze (: [])
 
-findTiles :: Tile -> Maze -> List Coords -> List Coords
+findTiles :: Tile -> Maze -> [Coords] -> [Coords]
 findTiles tile (Maze _ maze) = filterList (\c -> maze c == tile)
 
 ------------ event handling ------------
@@ -184,7 +182,7 @@ handleEvent (KeyPress key) (S _ startC boxList level)
   finalC = if canMove then targetC else startC
   targetC = adjacentCoords d startC
 
-  canMove = isOk targetTile || (targetTile == Box && isOk adjTile)
+  canMove = isOk targetTile || targetTile == Box && isOk adjTile
   targetTile = mazeWithBoxes maze boxList targetC
   adjTile = mazeWithBoxes maze boxList (adjacentCoords d targetC)
 
@@ -195,7 +193,7 @@ handleEvent (KeyPress key) (S _ startC boxList level)
 
   maze = nth mazes level
 
-  newBoxList = mapList (moveFromTo targetC (adjacentCoords d finalC)) boxList
+  newBoxList = map (moveFromTo targetC (adjacentCoords d finalC)) boxList
 handleEvent _ s = s
 
 ------------ drawing ------------
@@ -215,8 +213,8 @@ fromTile tile = case tile of
 drawMaze :: Maze -> Picture
 drawMaze maze = scanMaze $ \c -> fromTile (noBoxMaze maze c) @> c
 
-drawBoxes :: List Coords -> Picture
-drawBoxes cs = reduce' merge id $ mapList (fromTile Box @>) cs
+drawBoxes :: [Coords] -> Picture
+drawBoxes cs = fromMaybe blank $ reduce' merge id $ map (fromTile Box @>) cs
 
 player :: Picture
 player = colored red (styledLettering Bold Monospace ">")
@@ -269,20 +267,20 @@ resetable (Activity initial handler draw) =
   handler' (KeyPress "Esc") _ = initial
   handler' e s = handler e s
 
-data WithUndo a = WithUndo a (List a)
+data WithUndo a = WithUndo a [a]
 withUndo :: Eq a => Activity a -> Activity (WithUndo a)
 withUndo (Activity state0 handle draw) =
   Activity state0' handle' draw'
  where
-  state0' = WithUndo state0 Empty
+  state0' = WithUndo state0 []
 
   handle' (KeyPress key) (WithUndo s stack) | key == "U" =
     case stack of
-      Entry s' stack' -> WithUndo s' stack'
-      Empty -> WithUndo s Empty
+      [] -> WithUndo s []
+      (s' : stack') -> WithUndo s' stack'
   handle' e (WithUndo s stack)
     | s' == s = WithUndo s stack
-    | otherwise = WithUndo (handle e s) (Entry s stack)
+    | otherwise = WithUndo (handle e s) (s : stack)
    where
     s' = handle e s
 
@@ -314,27 +312,27 @@ main = runActivity (resetable $ withUndo $ withStartScreen sokoban)
 ------------------------------------ TRASH ------------------------------------
 
 data Maze = Maze Coords (Coords -> Tile)
-{- ORMOLU_DISABLE -}
-mazes :: List Maze
+
+mazes :: [Maze]
 mazes =
-  Entry (Maze (C (-3) 3) maze1) $
-  Entry (Maze (C 1 1) maze9)    $
-  Entry (Maze (C (-2) 4) maze6) $
-  Entry (Maze (C (-4) 3) maze3) $
-  Entry (Maze (C 1 (-3)) maze4) $
-  Entry (Maze (C (-3) 3) maze7) $
-  Entry (Maze (C 0 1) maze5)    $
-  Entry (Maze (C 0 0) maze8)    $
-  Empty
-
-extraMazes :: List Maze
+  [ Maze (C (-3) 3) maze1
+  , Maze (C 1 1) maze9
+  , Maze (C (-2) 4) maze6
+  , Maze (C (-4) 3) maze3
+  , Maze (C 1 (-3)) maze4
+  , Maze (C (-3) 3) maze7
+  , Maze (C 0 1) maze5
+  , Maze (C 0 0) maze8
+  ]
+{- 
+extraMazes :: [Maze]
 extraMazes =
-  Entry (Maze (C 1 (-3)) maze4')  $
-  Entry (Maze (C 1 (-3)) maze4'') $
-  Entry (Maze (C 1 1) maze9')
   mazes
-{- ORMOLU_ENABLE -}
-
+    ++ [ Maze (C 1 (-3)) maze4'
+       , Maze (C 1 (-3)) maze4''
+       , Maze (C 1 1) maze9'
+       ]
+ -}
 maze4 :: Coords -> Tile
 maze4 (C x y)
   | abs x > 4 || abs y > 4 = Blank
@@ -371,7 +369,7 @@ maze5 (C x y)
 maze6 :: Coords -> Tile
 maze6 (C x y)
   | abs x > 3 || abs y > 5 = Blank
-  | abs x == 3 || (abs y == 5 && abs x < 4) = Wall
+  | abs x == 3 || abs y == 5 && abs x < 4 = Wall
   | x == 0 && abs y < 4 = Storage
   | x == -1 && (y == 0 || abs y == 2) = Box
   | x == 1 && (abs y == 1 || abs y == 3) = Box
@@ -414,8 +412,7 @@ maze9 (C x y)
   | x == 1 && y == -2 = Box
   | x == 2 && y == -3 = Box
   | otherwise = Ground
-
-
+{- 
 maze4'' :: Coords -> Tile
 maze4'' (C 1 (-3)) = Box
 maze4'' c = maze4 c
@@ -428,7 +425,7 @@ maze9' :: Coords -> Tile
 maze9' (C 3 0) = Box
 maze9' (C 4 0) = Box
 maze9' c = maze9 c
-
+ -}
 maze3 :: Coords -> Tile -- bro wtf?
 maze3 (C (-5) (-5)) = Wall
 maze3 (C (-5) (-4)) = Wall
