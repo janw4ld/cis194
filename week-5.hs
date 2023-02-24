@@ -94,6 +94,16 @@ ex_sumNumbers =
   , sumNumbers "0.00a." == 0
   ]
 
+ex_addPolynomials :: [Bool]
+ex_addPolynomials =
+  [ addPolynomials [[]] == []
+  , addPolynomials [[0, 1], [1, 1]] == [1, 2]
+  , addPolynomials [[0, 1, 5], [7, 0, 0], [-2, -1, 5]] == [5, 0, 10]
+  ]
+
+addPolynomials :: [[Integer]] -> [Integer]
+addPolynomials = foldl1 (zipWith (+))
+
 sumNumbers :: String -> Integer
 sumNumbers =
   sum
@@ -148,6 +158,7 @@ testResults =
   , ("longestText", ex_longestText)
   , ("adjacents", ex_adjacents)
   , ("commas", ex_commas)
+  , ("addPolynomials", ex_addPolynomials)
   , ("sumNumbers", ex_sumNumbers)
   ]
 
