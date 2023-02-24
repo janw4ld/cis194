@@ -177,12 +177,11 @@ testResults =
 
 formatTests :: [(String, [Bool])] -> String
 {- ORMOLU_DISABLE -}
-formatTests = concatMap format
- where
+formatTests = concatMap format where
   format :: (String, [Bool]) -> String
   format (name, results) =
     name ++ ": "
-    ++ successCount results ++ "/" ++ count results ++ " successful test. "
+    ++ successCount results ++ "/" ++ count results ++ " successful tests. "
     ++ ( if null failedList then "" else
         ( if length failedIndices == 1 
           then "Test " else "Tests "
@@ -192,6 +191,6 @@ formatTests = concatMap format
    where
     count = show . length
     successCount rs = count $ filter id rs
-    failedList = (commas . map show) failedIndices
+    failedList = commas . map (show.(+1)) $ failedIndices
     failedIndices = findIndices not results
 {- ORMOLU_ENABLE -}
