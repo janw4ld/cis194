@@ -7,11 +7,13 @@
 import Data.Char qualified as C
 import Data.Foldable (maximumBy)
 import Data.Function (on)
+import Data.List (findIndices)
 import Data.Set (Set)
 import Data.Set qualified as S
 import Data.Text.Lazy (Text)
 import Data.Text.Lazy qualified as T
 import Prelude
+
 -- import System.Environment (getArgs)
 
 ---------------------------------- Exercise 1 ----------------------------------
@@ -107,8 +109,8 @@ ex_sumNumbers =
   [ sumNumbers "" == 0
   , sumNumbers "Hello world!" == 0
   , sumNumbers "a1bc222d3f44" == 270
-  , sumNumbers "words0are1234separated12by3integers45678" == 46927
-  , sumNumbers "000a." == 0
+  , sumNumbers "words0are1234sep3arated12byintegers45678" == 46927
+  , sumNumbers "00a." == 0
   , sumNumbers "0.00a." == 0
   ]
 
@@ -128,10 +130,9 @@ sumNumbers str =
       0
 
 ---------------------------------- Exercise 2 ----------------------------------
-
 wordCount :: String -> String
-wordCount str =
 {- ORMOLU_DISABLE -}
+wordCount str =
   "Word Stats: "
     ++ "\nNumber of lines: "        ++ show (length ls)
     ++ "\nNumber of empty lines: "  ++ show (length (filter null ls))
@@ -140,17 +141,18 @@ wordCount str =
     ++ "\nNumber of words followed by themselves: " ++ show (dupeCount ws S.empty) -- this is wrong
     ++ "\nLength of the longest line: " ++ show (maximum $ map length ls)
     ++ "\n"
-{- ORMOLU_ENABLE -}
  where
   ls = lines str
   ws = words str
   dupeCount :: [String] -> Set String -> Int
+-- dupeCount xs = length $ filter (not.(`elem` (S.toList.S.fromList) xs)) xs
   dupeCount (w:w':ws') xs
     | w==w' = dupeCount (w':ws') (w`S.insert`xs)
     | otherwise = dupeCount (w':ws') xs
   dupeCount _ xs = length xs
-  -- dupeCount xs = length $ filter (not.(`elem` (S.toList.S.fromList) xs)) xs
-{- 
+{- ORMOLU_ENABLE -}
+
+{-
 main :: IO ()
 main = do
   args <- getArgs
@@ -162,26 +164,34 @@ main = do
  -}
 ---------------------------------- Exercise 3 ----------------------------------
 
-{-
 testResults :: [(String, [Bool])]
 testResults =
   [ ("halveEvens", ex_halveEvens)
   , ("safeString", ex_safeString)
   , ("holes", ex_holes)
-      …
+  , ("longestText", ex_longestText)
+  , ("adjacents", ex_adjacents)
+  , ("commas", ex_commas)
+  , ("sumNumbers", ex_sumNumbers)
   ]
 
-as well as a function `formatTests` that presents the data nicely.
-```
-halveEvens: 3/3 successful tests
-safeString: 1/3 successful tests. Failing tests: 1, 3 and 4
-holes: All 2 tests failed.
-```
-Define main to print the string returned by formatTests applied to testResults.
-
-(Naturally, all your tests are failing. You can add some bogus data to
-testResults to test your formatTests function.)
--}
-
 formatTests :: [(String, [Bool])] -> String
-formatTests = undefined
+{- ORMOLU_DISABLE -}
+formatTests = concatMap format
+ where
+  format :: (String, [Bool]) -> String
+  format (name, results) =
+    name ++ ": "
+    ++ successCount results ++ "/" ++ count results ++ " successful test. "
+    ++ ( if null failedList then "" else
+        ( if length failedIndices == 1 
+          then "Test " else "Tests "
+        ) ++ failedList ++ " failed."
+        ) 
+    ++ "\n"
+   where
+    count = show . length
+    successCount rs = count $ filter id rs
+    failedList = (commas . map show) failedIndices
+    failedIndices = findIndices not results
+{- ORMOLU_ENABLE -}
