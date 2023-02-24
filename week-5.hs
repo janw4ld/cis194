@@ -7,10 +7,12 @@
 import Data.Char qualified as C
 import Data.Foldable (maximumBy)
 import Data.Function (on)
+import Data.Set (Set)
 import Data.Set qualified as S
 import Data.Text.Lazy (Text)
 import Data.Text.Lazy qualified as T
 import Prelude
+-- import System.Environment (getArgs)
 
 ---------------------------------- Exercise 1 ----------------------------------
 
@@ -128,37 +130,36 @@ sumNumbers str =
 ---------------------------------- Exercise 2 ----------------------------------
 
 wordCount :: String -> String
-{-
-Use the following example output as specification:
-
-Number of lines: 23
-Number of empty lines: 10
-Number of words: 40
-Number of unique words: 25
-Number of words followed by themselves: 3
-Length of the longest line: 5
-
-A line and a word is what `lines` respectively `words` return.
--}
 wordCount str =
+{- ORMOLU_DISABLE -}
   "Word Stats: "
-    ++ "\nNo. of lines: "
-    ++ show (length ls)
-    ++ "\nNo. of empty lines: "
-    ++ show (length (filter null ls))
-    ++ "\nNo. of words: "
-    ++ show (length ws)
-    ++ "\nNo. of unique words: "
-    ++ show (length $ S.fromList ws)
-    -- ++ "\nNo. of words followed by themselves"
-    -- ++ show $ T.foldl
-    ++ "\nLongest line length: "
-    ++ show (maximum $ map length ls)
+    ++ "\nNumber of lines: "        ++ show (length ls)
+    ++ "\nNumber of empty lines: "  ++ show (length (filter null ls))
+    ++ "\nNumber of words: "        ++ show (length ws)
+    ++ "\nNumber of unique words: " ++ show (length $ S.fromList ws)
+    ++ "\nNumber of words followed by themselves: " ++ show (dupeCount ws S.empty) -- this is wrong
+    ++ "\nLength of the longest line: " ++ show (maximum $ map length ls)
     ++ "\n"
+{- ORMOLU_ENABLE -}
  where
   ls = lines str
   ws = words str
-
+  dupeCount :: [String] -> Set String -> Int
+  dupeCount (w:w':ws') xs
+    | w==w' = dupeCount (w':ws') (w`S.insert`xs)
+    | otherwise = dupeCount (w':ws') xs
+  dupeCount _ xs = length xs
+  -- dupeCount xs = length $ filter (not.(`elem` (S.toList.S.fromList) xs)) xs
+{- 
+main :: IO ()
+main = do
+  args <- getArgs
+  case args of
+    [filepath] -> do
+      contents <- readFile filepath
+      putStr $ wordCount contents
+    _ -> putStrLn "Usage: wordcount filepath"
+ -}
 ---------------------------------- Exercise 3 ----------------------------------
 
 {-
