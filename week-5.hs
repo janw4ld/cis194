@@ -1,19 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ParallelListComp #-}
 {-# HLINT ignore "Use camelCase" #-}
 {-# HLINT ignore "Use null" #-}
 {-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas #-}
 
+import Prelude
+
 import Data.Char qualified as C
 import Data.Foldable (maximumBy)
 import Data.Function (on)
-import Data.List (findIndices)
-import Data.Set (Set)
-import Data.Set qualified as S
-import Data.Text.Lazy (Text)
-import Data.Text.Lazy qualified as T
-import Prelude
+import Data.List qualified as L
 
+-- import Data.Set qualified as S
 -- import System.Environment (getArgs)
 
 ---------------------------------- Exercise 1 ----------------------------------
@@ -26,8 +23,7 @@ ex_halveEvens =
   ]
 
 halveEvens :: [Integer] -> [Integer]
-halveEvens [] = []
-halveEvens xs = map (`div` 2) (filter even xs)
+halveEvens = map (`div` 2) . filter even
 
 ex_safeString :: [Bool]
 ex_safeString =
@@ -49,21 +45,11 @@ ex_holes =
   , holes "Hello" == ["ello", "Hllo", "Helo", "Helo", "Hell"]
   ]
 
-holes :: forall a. [a] -> [[a]]
+holes :: [a] -> [[a]]
 holes xs =
-  map
-    ( \n ->
-        if 0 <= n && n < m
-          then take n xs ++ drop (n + 1) xs
-          else []
-    )
-    [0 .. m - 1] ---TODO: find scanner-ish functions
- where
-  m = length xs
-
--- holeAt idx xs = lft ++ drop 1 rgt
---  where
---   (lft, (_ : rgt)) = splitAt idx xs ---- ! non-exhaustive
+  [ take i xs ++ drop (i + 1) xs
+  | i <- [0 .. length xs - 1]
+  ]
 
 ex_longestText :: [Bool]
 ex_longestText =
@@ -74,8 +60,7 @@ ex_longestText =
   ]
 
 longestText :: Show a => [a] -> a
-longestText [] = error "Input can't be empty"
-longestText xs = maximumBy (compare `on` length . show) xs --- *** return to this sorcery
+longestText = maximumBy (compare `on` (length . show))
 
 ex_adjacents :: [Bool]
 ex_adjacents =
@@ -84,12 +69,8 @@ ex_adjacents =
   , adjacents "Hello" == [('H', 'e'), ('e', 'l'), ('l', 'l'), ('l', 'o')]
   ]
 
-adjacents :: forall a. [a] -> [(a, a)]
-adjacents xs =
-  [ (i, j) -- I'm doing really cursed stuff at this point, but the real zip is weird
-  | i <- xs
-  | j <- drop 1 xs
-  ]
+adjacents :: [a] -> [(a, a)]
+adjacents xs = zip xs (tail xs)
 
 ex_commas :: [Bool]
 ex_commas =
@@ -101,8 +82,7 @@ ex_commas =
   ]
 
 commas :: [String] -> String
-commas [] = ""
-commas xs = concatMap (++ ", ") (init xs) ++ last xs
+commas = L.intercalate ", "
 
 ex_sumNumbers :: [Bool]
 ex_sumNumbers =
@@ -115,41 +95,36 @@ ex_sumNumbers =
   ]
 
 sumNumbers :: String -> Integer
-sumNumbers str =
-  sum $
-    map (toInteger . strToInt) $
-      filter (/= "") $ -- not the most elegant or performant solution
-        T.split (not . C.isDigit) (T.pack str)
- where
-  strToInt :: Text -> Int
-  strToInt =
-    T.foldl
-      ( \a c ->
-          a * 10 + C.digitToInt c
-      )
-      0
+sumNumbers =
+  sum
+    . map read
+    . filter (C.isDigit . head)
+    . L.groupBy ((==) `on` C.isDigit)
 
 ---------------------------------- Exercise 2 ----------------------------------
+-- count :: Foldable a -> String
+count :: [a] -> String
+count = show . length
+
 wordCount :: String -> String
 {- ORMOLU_DISABLE -}
 wordCount str =
   "Word Stats: "
-    ++ "\nNumber of lines: "        ++ show (length ls)
-    ++ "\nNumber of empty lines: "  ++ show (length (filter null ls))
-    ++ "\nNumber of words: "        ++ show (length ws)
-    ++ "\nNumber of unique words: " ++ show (length $ S.fromList ws)
-    ++ "\nNumber of words followed by themselves: " ++ show (dupeCount ws S.empty) -- this is wrong
+    ++ "\nNumber of lines: "        ++ count ls
+    ++ "\nNumber of empty lines: "  ++ count (filter null ls)
+    ++ "\nNumber of words: "        ++ count ws
+    ++ "\nNumber of unique words: " ++ count (L.nub ws)
+    ++ "\nNumber of words followed by themselves: " ++ count dupes
     ++ "\nLength of the longest line: " ++ show (maximum $ map length ls)
     ++ "\n"
  where
   ls = lines str
   ws = words str
-  dupeCount :: [String] -> Set String -> Int
--- dupeCount xs = length $ filter (not.(`elem` (S.toList.S.fromList) xs)) xs
-  dupeCount (w:w':ws') xs
-    | w==w' = dupeCount (w':ws') (w`S.insert`xs)
-    | otherwise = dupeCount (w':ws') xs
-  dupeCount _ xs = length xs
+  dupes = filter (uncurry (==)) (adjacents ws)
+  -- dupes (w:w':ws') xs -- recursive but more efficient?
+  --   | w==w' = dupes (w':ws') (w`S.insert`xs)
+  --   | otherwise = dupes (w':ws') xs
+  -- dupes _ xs = xs
 {- ORMOLU_ENABLE -}
 
 {-
@@ -189,8 +164,7 @@ formatTests = concatMap format where
         ) 
     ++ "\n"
    where
-    count = show . length
     successCount rs = count $ filter id rs
     failedList = commas . map (show.(+1)) $ failedIndices
-    failedIndices = findIndices not results
+    failedIndices = L.findIndices not results
 {- ORMOLU_ENABLE -}
