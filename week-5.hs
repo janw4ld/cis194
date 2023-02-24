@@ -9,8 +9,8 @@ import Data.Char qualified as C
 import Data.Foldable (maximumBy)
 import Data.Function (on)
 import Data.List qualified as L
+import Data.Set qualified as S
 
--- import Data.Set qualified as S
 -- import System.Environment (getArgs)
 
 ---------------------------------- Exercise 1 ----------------------------------
@@ -103,28 +103,29 @@ sumNumbers =
 
 ---------------------------------- Exercise 2 ----------------------------------
 -- count :: Foldable a -> String
-count :: [a] -> String
+count :: Foldable f => f a -> String
 count = show . length
 
 wordCount :: String -> String
 {- ORMOLU_DISABLE -}
 wordCount str =
   "Word Stats: "
-    ++ "\nNumber of lines: "        ++ count ls
-    ++ "\nNumber of empty lines: "  ++ count (filter null ls)
-    ++ "\nNumber of words: "        ++ count ws
-    ++ "\nNumber of unique words: " ++ count (L.nub ws)
+    ++ "\nNumber of lines: "                        ++ count ls
+    ++ "\nNumber of empty lines: "                  ++ count (filter null ls)
+    ++ "\nNumber of words: "                        ++ count ws
+    ++ "\nNumber of unique words: "                 ++ count (L.nub ws)
     ++ "\nNumber of words followed by themselves: " ++ count dupes
     ++ "\nLength of the longest line: " ++ show (maximum $ map length ls)
     ++ "\n"
  where
   ls = lines str
   ws = words str
-  dupes = filter (uncurry (==)) (adjacents ws)
-  -- dupes (w:w':ws') xs -- recursive but more efficient?
-  --   | w==w' = dupes (w':ws') (w`S.insert`xs)
-  --   | otherwise = dupes (w':ws') xs
-  -- dupes _ xs = xs
+  -- dupes = filter (uncurry (==)) (adjacents ws) -- huh, the professor's solution is incorrect
+  dupes = dupes' ws S.empty
+  dupes' (w:w':ws') xs -- recursive but more efficient?
+    | w==w' = dupes' (w':ws') (w`S.insert`xs)
+    | otherwise = dupes' (w':ws') xs
+  dupes' _ xs = xs
 {- ORMOLU_ENABLE -}
 
 {-
