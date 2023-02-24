@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wall -Wimplicit-prelude #-}
 
 import CodeWorld
-import Prelude hiding (elem)
+import Prelude -- hiding (elem)
 
 import Data.Map.Lazy (Map, fromList, member, (!))
 import Data.Maybe (fromMaybe)
@@ -16,10 +16,10 @@ reduce' select go (x : xs) = Just $ select' (go x) (reduce' select go xs)
  where
   select' a Nothing = a
   select' a (Just b) = select a b
-
+{- 
 elem :: Eq a => a -> [a] -> Bool
 elem c cs = fromMaybe False $ reduce' (||) (== c) cs
-
+ -}
 subset :: Eq a => [a] -> [a] -> Bool
 subset xs ys = fromMaybe False $ reduce' (&&) (`elem` ys) xs
 

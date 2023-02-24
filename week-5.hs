@@ -1,14 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ParallelListComp #-}
 {-# HLINT ignore "Use camelCase" #-}
 {-# HLINT ignore "Use null" #-}
-{-# LANGUAGE ParallelListComp #-}
-{-# OPTIONS_GHC -Wall -Wimplicit-prelude #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas #-}
 
-import Data.Char
-import Data.Foldable
+import Data.Char qualified as C
+import Data.Foldable (maximumBy)
 import Data.Function (on)
-import Data.List
+import Data.Set qualified as S
+import Data.Text.Lazy (Text)
+import Data.Text.Lazy qualified as T
 import Prelude
 
 ---------------------------------- Exercise 1 ----------------------------------
@@ -34,7 +35,7 @@ ex_safeString =
 
 safeString :: String -> String
 safeString = map $ \c ->
-  if isAscii c && isPrint c
+  if C.isAscii c && C.isPrint c
     then c
     else '_'
 
@@ -96,7 +97,8 @@ ex_commas =
   ]
 
 commas :: [String] -> String
-commas xs = undefined -- transpose [xs, replicate (length xs) ", "]
+commas [] = ""
+commas xs = concatMap (++ ", ") (init xs) ++ last xs
 
 ex_sumNumbers :: [Bool]
 ex_sumNumbers =
@@ -109,7 +111,19 @@ ex_sumNumbers =
   ]
 
 sumNumbers :: String -> Integer
-sumNumbers = undefined
+sumNumbers str =
+  sum $
+    map (toInteger . strToInt) $
+      filter (/= "") $ -- not the most elegant or performant solution
+        T.split (not . C.isDigit) (T.pack str)
+ where
+  strToInt :: Text -> Int
+  strToInt =
+    T.foldl
+      ( \a c ->
+          a * 10 + C.digitToInt c
+      )
+      0
 
 ---------------------------------- Exercise 2 ----------------------------------
 
@@ -126,7 +140,24 @@ Length of the longest line: 5
 
 A line and a word is what `lines` respectively `words` return.
 -}
-wordCount = undefined
+wordCount str =
+  "Word Stats: "
+    ++ "\nNo. of lines: "
+    ++ show (length ls)
+    ++ "\nNo. of empty lines: "
+    ++ show (length (filter null ls))
+    ++ "\nNo. of words: "
+    ++ show (length ws)
+    ++ "\nNo. of unique words: "
+    ++ show (length $ S.fromList ws)
+    -- ++ "\nNo. of words followed by themselves"
+    -- ++ show $ T.foldl
+    ++ "\nLongest line length: "
+    ++ show (maximum $ map length ls)
+    ++ "\n"
+ where
+  ls = lines str
+  ws = words str
 
 ---------------------------------- Exercise 3 ----------------------------------
 
