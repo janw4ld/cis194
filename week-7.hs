@@ -54,6 +54,8 @@ streamTail (Cons _ xs') = xs'
 nats :: Stream Integer
 nats = streamIterate (+ 1) 0
 
+-- TODO ruler function
+
 ------------------------------ Exercise 3 ------------------------------
 
 newtype Supply s a = S (Stream s -> (a, Stream s))
