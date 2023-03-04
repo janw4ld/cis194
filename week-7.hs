@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wall -Wno-implicit-prelude -Wno-unrecognised-pragmas #-}
 
 import Prelude
 
@@ -55,6 +55,13 @@ nats :: Stream Integer
 nats = streamIterate (+ 1) 0
 
 -- TODO ruler function
+ruler :: Stream Integer
+{-
+|0    |    0  |       0 |           0 |               0 |  <-- (streamRepeat 0)
+|+1->1|0  1   |0 1 0 2  |0 1 0 2 0 1  |0 1 0 2 0 1 0 3  |0 1 0 2 0 1 0 3 0 1 <- ruler
+|     |  +1->2|   +1-->1|     +1---->3|       +1------>1|  <-- (+1) `streamMap` ruler
+-}
+ruler = streamInterleave (streamRepeat 0) (streamMap (+ 1) ruler)
 
 ------------------------------ Exercise 3 ------------------------------
 
