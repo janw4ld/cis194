@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall -Wimplicit-prelude #-}
+{-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas #-}
 
 import Prelude
 
@@ -23,8 +23,6 @@ fib = (!!) fibs . fromInteger
 ------------------------------ Exercise 2 ------------------------------
 
 data Stream a = Cons a (Stream a)
-(//) :: a -> Stream a -> Stream a
-(//) = Cons
 
 instance Show a => Show (Stream a) where
   show (Cons x xs) = show x ++ ", " ++ show xs
@@ -45,13 +43,7 @@ streamIterate :: (a -> a) -> a -> Stream a
 streamIterate fn x = Cons x (streamIterate fn (fn x))
 
 streamInterleave :: Stream a -> Stream a -> Stream a
-streamInterleave (Cons x xs) ys =
-  Cons
-    x
-    ( Cons
-        (streamHead ys)
-        (streamInterleave xs (streamTail ys))
-    )
+streamInterleave (Cons x xs) ys = Cons x (streamInterleave ys xs)
 
 --  where
 streamHead :: Stream a -> a
@@ -59,4 +51,70 @@ streamHead (Cons x' _) = x'
 streamTail :: Stream a -> Stream a
 streamTail (Cons _ xs') = xs'
 
+nats :: Stream Integer
+nats = streamIterate (+ 1) 0
+
 ------------------------------ Exercise 3 ------------------------------
+
+newtype Supply s a = S (Stream s -> (a, Stream s))
+
+get :: Supply s s
+get = S (\(Cons x xs') -> (x, xs'))
+
+pureSupply :: a -> Supply s a
+pureSupply x = S (x,) -- Tuple-section, equivalent to \xs -> (x,xs)
+
+mapSupply :: (a -> b) -> Supply s a -> Supply s b
+mapSupply fn (S s) =
+  S
+    ( \xs ->
+        let (x, xs') = s xs
+         in (fn x, xs')
+    )
+
+mapSupply2 :: (a -> b -> c) -> Supply s a -> Supply s b -> Supply s c
+mapSupply2 fn (S sA) (S sB) =
+  S
+    ( \xs ->
+        let
+          (a, as) = sA xs
+          (b, bs) = sB as
+         in
+          (fn a b, bs)
+    )
+
+bindSupply :: Supply s a -> (a -> Supply s b) -> Supply s b
+bindSupply (S sA) fn =
+  S
+    ( \xs ->
+        let
+          (x, xs') = sA xs
+          (S sB) = fn x
+         in
+          sB xs'
+    )
+
+runSupply :: Stream s -> Supply s a -> a
+runSupply xs (S s) = fst $ s xs
+
+instance Functor (Supply s) where
+  fmap = mapSupply
+
+instance Applicative (Supply s) where
+  pure = pureSupply
+  (<*>) = mapSupply2 id
+
+instance Monad (Supply s) where
+  return = pure
+  (>>=) = bindSupply
+
+data Tree a = Node (Tree a) (Tree a) | Leaf a deriving (Show)
+labelTree :: Tree a -> Tree Integer
+labelTree t = runSupply nats (go t)
+ where
+  go :: Tree a -> Supply s (Tree s)
+  go (Node lt rt) = do
+    lt' <- go lt
+    rt' <- go rt
+    return (Node lt' rt')
+  go (Leaf _) = S $ \(Cons x s') -> (Leaf x, s')
