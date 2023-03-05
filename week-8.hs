@@ -11,3 +11,7 @@ data ComplicatedB f g a b
   | Con4 (g b)
   | Con5 (g (g [b]))
 
+mapA :: (b -> c) -> ComplicatedA a b -> ComplicatedA a c
+mapA fn (Con1 a b) = Con1 a $ fn b
+mapA fn (Con2 [Just fn1]) = Con2 [Just (fn . fn1)]
+mapA _ (Con2 _) = Con2 [Nothing]
