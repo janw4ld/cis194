@@ -53,6 +53,6 @@ main :: IO ()
 main = do
   let dolly = breedSheep
   print (parent dolly :: [] Sheep)
-  print (grandparent dolly :: [] Sheep)
   print (parent dolly :: Maybe Sheep)
+  print (grandparent dolly :: [] Sheep)
   print (grandparent dolly :: Maybe Sheep)
