@@ -1,4 +1,6 @@
-{-# OPTIONS_GHC -Wall -Wno-implicit-prelude -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas #-}
+
+import Prelude
 
 import Control.Monad (MonadPlus (mplus, mzero))
 

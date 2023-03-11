@@ -1,4 +1,6 @@
-{-# OPTIONS_GHC -Wall -Wno-implicit-prelude -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas #-}
+
+import Prelude
 
 {- implement a functor for both of the following data typess -}
 
@@ -53,7 +55,7 @@ func3' xs = (\x _ -> (x, x)) <$> xs <*> xs
 func4 :: Monad f => f a -> f a -> f (a, a)
 func4 xs ys = xs >>= (\x -> ys >>= \y -> return (x, y))
 
-func4' :: Monad f => f a -> f a -> f (a, a)
+func4' :: Applicative f => f a -> f a -> f (a, a)
 func4' xs ys = (,) <$> xs <*> ys
 
 func5 :: Monad f => f Integer -> f Integer -> f Integer
@@ -87,7 +89,7 @@ func7 xs = do
     then return (x, 0)
     else return (0, x)
 
-func7' :: Monad f => f Integer -> f (Integer, Integer)
+func7' :: Functor f => f Integer -> f (Integer, Integer)
 func7' xs =
   ( \x -> if x > 0 then (x, 0) else (0, x)
   )
@@ -102,7 +104,7 @@ func8' xs x = (+ x) <$> xs
 func9 :: Monad f => f Integer -> f Integer -> f Integer -> f Integer
 func9 xs ys zs = xs >>= \x -> if even x then ys else zs
 
-func9' :: Monad f => f Integer -> f Integer -> f Integer -> f Integer
+func9' :: Applicative f => f Integer -> f Integer -> f Integer -> f Integer
 func9' xs ys zs =
   ( \(y, z) x ->
       if even x then y else z

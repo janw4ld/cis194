@@ -1,6 +1,7 @@
-{-# OPTIONS_GHC -Wall -Wno-implicit-prelude -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas #-}
 
--- import Control.Applicative ((<|>))
+import Prelude
+
 import Data.Maybe (maybeToList)
 
 ---------------------------- exercise 1 ----------------------
@@ -38,9 +39,10 @@ breedSheep =
 parent :: Sheep -> [Sheep]
 parent s =
   -- foldl1 (<|>) $
-      [ mother s
-      , father s
-      ] >>= maybeToList
+  [ mother s
+  , father s
+  ]
+    >>= maybeToList
 
 grandparent :: Sheep -> [Sheep]
 grandparent s = parent s >>= parent

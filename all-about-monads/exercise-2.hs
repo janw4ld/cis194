@@ -1,9 +1,11 @@
-{-# OPTIONS_GHC -Wall -Wno-implicit-prelude -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas #-}
+
+import Prelude
 
 import Control.Applicative ((<|>))
 
 ---------------------------- exercise 2 ----------------------
-{- 
+{-
 Write functions parent and grandparent that should return
 one sheep selected from all sheep matching the description or
 `Nothing` if there's no such sheep.
@@ -38,13 +40,13 @@ parent :: Sheep -> Maybe Sheep
 parent s = mother s <|> father s
 
 grandparent :: Sheep -> Maybe Sheep
-grandparent s = parent s >>= parent {- 
-  foldl1 (<|>) $
-    map
-      (>>= parent)
-      [ mother s -- TODO rewrite this with tuples
-      , father s
-      ] -}
+grandparent s = parent s >>= parent {-
+                                    foldl1 (<|>) $
+                                      map
+                                        (>>= parent)
+                                        [ mother s -- TODO rewrite this with tuples
+                                        , father s
+                                        ] -}
 
 main :: IO ()
 main = do
