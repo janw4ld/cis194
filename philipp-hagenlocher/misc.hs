@@ -1,7 +1,9 @@
 {-# OPTIONS_GHC -Wall -Wimplicit-prelude -Wno-unrecognised-pragmas -Wunrecognised-pragmas #-}
 
+import Data.Char (toLower)
 import Data.List (sort)
-
+import Data.Set qualified as S
+import System.IO
 import Test.QuickCheck -- <https://hackage.haskell.org/package/QuickCheck>
 import Prelude
 
@@ -45,3 +47,34 @@ check =
   quickCheckWith
     stdArgs{maxSuccess = 10000}
     (prop_sorted :: [Int] -> Bool)
+
+------------------------------------------------------------------------
+
+search :: IO ()
+search = do
+  hSetBuffering stdout NoBuffering
+  putStrLn "Specify the words to search:"
+  searchWs <- lowercase <$> getLines []
+  putStr "File to search >> "
+  fileWs <-
+    lowercase . dedupe . words
+      <$> (getLine >>= readFile)
+  let foundWs = filter (`elem` searchWs) fileWs
+  let notFoundWs = filter (not . (`elem` foundWs)) searchWs
+  putStrLn $ "found: " <> show foundWs
+  putStrLn $ "not found: " <> show notFoundWs
+ where
+  getLines :: [String] -> IO [String]
+  getLines xs =
+    (:) <$> putStr ">> "
+      >> getLine
+      >>= ( \line ->
+              if line == ""
+                then pure xs
+                else getLines (xs <> [line])
+          )
+  dedupe = S.toList . S.fromList
+  lowercase = (map . map) toLower -- list of strings === matrix of chars
+
+main :: IO ()
+main = search

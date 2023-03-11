@@ -102,18 +102,19 @@ func8' :: Functor f => f Integer -> Integer -> f Integer
 func8' xs x = (+ x) <$> xs
 
 func9 :: Monad f => f Integer -> f Integer -> f Integer -> f Integer
+{- NO SOLUTION -}
 func9 xs ys zs = xs >>= \x -> if even x then ys else zs
 
-func9' :: Applicative f => f Integer -> f Integer -> f Integer -> f Integer
-func9' xs ys zs =
-  ( \(y, z) x ->
-      if even x then y else z
-  )
-    <$> ( (,)
-            <$> ys
-            <*> zs -- this is incorrect
-        )
-    <*> xs
+-- func9' :: Applicative f => f Integer -> f Integer -> f Integer -> f Integer
+-- func9' xs ys zs =
+--   ( \(y, z) x ->
+--       if even x then y else z
+--   )
+--     <$> ( (,)
+--             <$> ys
+--             <*> zs -- this is incorrect
+--         )
+--     <*> xs
 
 func10 :: Monad f => f Integer -> f Integer
 func10 xs = do
