@@ -35,5 +35,29 @@ lagrange xs x =
 
 {- A function that folds the elements of a trie in a preorder traversal -}
 data Trie a = Leaf a | Node a [Trie a]
+example :: Trie Char
+{- ORMOLU_DISABLE -}
+example =
+  Node 'c'
+    [ Node 'a'
+        [ Leaf 'r'
+        , Leaf 't'
+        ]
+    , Node 'o'
+        [ Node 'o'
+          [ Leaf 'l'
+          ]
+        ]
+    ]
+{- ORMOLU_ENABLE -}
+
 foldtrie :: (b -> a -> b) -> b -> Trie a -> b
-foldtrie = undefined
+foldtrie fn acc (Leaf a) = fn acc a
+foldtrie fn acc (Node a ts) = foldl (foldtrie fn) (fn acc a) ts
+
+foldtrie2 :: (b -> a -> b) -> b -> Trie a -> b {- not required -}
+foldtrie2 fn acc (Leaf a) = fn acc a
+foldtrie2 fn acc (Node a ts) = fn (foldl (foldtrie2 fn) acc ts) a
+
+check :: [Char]
+check = foldtrie2 (\str c -> str ++ [c]) "" example
